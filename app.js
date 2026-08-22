@@ -139,6 +139,9 @@
   const aboutStep2 = document.getElementById('about-step-2');
   const aboutStep3 = document.getElementById('about-step-3');
   const aboutStep4 = document.getElementById('about-step-4');
+  const eduCard = document.querySelector('.education-card');
+  const skillCard = document.querySelector('.skills-card');
+  const canvasWrapper = document.getElementById('canvas-wrapper');
 
   let frameExt = 'avif';
   let currentDevice = getDeviceType();
@@ -148,6 +151,7 @@
   let currentProgress = 0;
   let currentFrameIndex = 0;
   let storyDone = false;
+  let stageAboutOpacity = 0;   // narrative opacity, before the handoff fade
 
   function getDeviceType() {
     const w = window.innerWidth;
@@ -243,6 +247,18 @@
     return 0;
   }
 
+  // Opacity + interactivity together. The stylesheet used to gate clicks behind
+  // a .visible class that was never applied, which made every hero button dead.
+  // `collapse` takes a faded-out block out of layout flow, so the block that
+  // replaces it can occupy the stage instead of being pushed below it.
+  function paint(node, opacity, offsetY, collapse) {
+    if (!node) return;
+    node.style.opacity = opacity;
+    if (offsetY != null) node.style.transform = 'translateY(' + offsetY + 'px)';
+    node.style.pointerEvents = opacity > 0.5 ? 'auto' : 'none';
+    if (collapse) node.style.display = opacity <= 0.01 ? 'none' : '';
+  }
+
   function updateScrollNarrative(progress) {
     if (timelineFill) timelineFill.style.width = Math.min(100, progress * 100) + '%';
 
@@ -254,46 +270,70 @@
       stageHome.style.transform = 'translateY(' + (progress * -30) + 'px)';
     }
 
-    if (step1) {
-      step1.style.opacity = interpolateRange(progress, 0.00, 0.00, 0.38, 0.44);
-      step1.style.transform = 'translateY(0)';
-    }
-    if (step2) {
-      step2.style.opacity = interpolateRange(progress, 0.03, 0.10, 0.38, 0.44);
-      step2.style.transform = 'translateY(' + ((1 - clamp01((progress - 0.03) / 0.07)) * 16) + 'px)';
-    }
-    if (step3) {
-      step3.style.opacity = interpolateRange(progress, 0.10, 0.20, 0.38, 0.44);
-      step3.style.transform = 'translateY(' + ((1 - clamp01((progress - 0.10) / 0.10)) * 18) + 'px)';
-    }
-    if (step4) {
-      step4.style.opacity = interpolateRange(progress, 0.20, 0.32, 0.38, 0.44);
-      step4.style.transform = 'translateY(' + ((1 - clamp01((progress - 0.20) / 0.12)) * 16) + 'px)';
-    }
+    paint(step1, interpolateRange(progress, 0.00, 0.00, 0.38, 0.44), 0);
+    paint(step2, interpolateRange(progress, 0.03, 0.10, 0.38, 0.44), (1 - clamp01((progress - 0.03) / 0.07)) * 16);
+    paint(step3, interpolateRange(progress, 0.10, 0.20, 0.38, 0.44), (1 - clamp01((progress - 0.10) / 0.10)) * 18);
+    paint(step4, interpolateRange(progress, 0.20, 0.32, 0.38, 0.44), (1 - clamp01((progress - 0.20) / 0.12)) * 16);
 
     // STAGE 2: ABOUT (0.44 → 1.00)
     const aboutOpacity = interpolateRange(progress, 0.44, 0.50, 1.0, 1.0);
+    stageAboutOpacity = aboutOpacity;
     if (stageAbout) {
-      stageAbout.style.opacity = aboutOpacity;
+      // Final opacity is applied in tick(), which also folds in the handoff fade.
       stageAbout.style.pointerEvents = aboutOpacity > 0.2 ? 'auto' : 'none';
       stageAbout.classList.toggle('active', aboutOpacity > 0.01);
     }
-    if (aboutStep1) {
-      aboutStep1.style.opacity = interpolateRange(progress, 0.46, 0.56, 1.0, 1.0);
-      aboutStep1.style.transform = 'translateY(' + ((1 - clamp01((progress - 0.46) / 0.10)) * 22) + 'px)';
+    // The intro block (header + narrative + stats) hands over to the
+    // Education/Skills cards rather than stacking with them — otherwise the
+    // section is taller than any real viewport and needs a nested scrollbar.
+    paint(aboutStep1, interpolateRange(progress, 0.45, 0.51, 0.72, 0.78), (1 - clamp01((progress - 0.45) / 0.06)) * 22, true);
+    paint(aboutStep2, interpolateRange(progress, 0.52, 0.59, 0.72, 0.78), (1 - clamp01((progress - 0.52) / 0.07)) * 22, true);
+    paint(aboutStep3, interpolateRange(progress, 0.60, 0.67, 0.72, 0.78), (1 - clamp01((progress - 0.60) / 0.07)) * 20, true);
+
+    // Below the 2-column breakpoint the two cards stack, which again overflows,
+    // so on narrow screens they take the stage one at a time.
+    const twoCol = window.innerWidth > 1024;
+    let eduOp, skillOp;
+    if (twoCol) {
+      eduOp = skillOp = interpolateRange(progress, 0.78, 0.88, 1.0, 1.0);
+    } else {
+      // Stacked on one grid cell (see layoutAboutCards), so they can overlap
+      // through a true cross-fade with no blank frame between them.
+      eduOp = interpolateRange(progress, 0.76, 0.83, 0.87, 0.92);
+      skillOp = interpolateRange(progress, 0.87, 0.92, 1.0, 1.0);
     }
-    if (aboutStep2) {
-      aboutStep2.style.opacity = interpolateRange(progress, 0.54, 0.66, 1.0, 1.0);
-      aboutStep2.style.transform = 'translateY(' + ((1 - clamp01((progress - 0.54) / 0.12)) * 22) + 'px)';
+
+    const wrap = Math.max(eduOp, skillOp);
+    paint(aboutStep4, wrap, (1 - clamp01((progress - 0.76) / 0.10)) * 22, true);
+    if (eduCard) {
+      eduCard.style.opacity = eduOp;
+      eduCard.style.pointerEvents = eduOp > 0.5 ? 'auto' : 'none';
     }
-    if (aboutStep3) {
-      aboutStep3.style.opacity = interpolateRange(progress, 0.64, 0.76, 1.0, 1.0);
-      aboutStep3.style.transform = 'translateY(' + ((1 - clamp01((progress - 0.64) / 0.12)) * 20) + 'px)';
+    if (skillCard) {
+      skillCard.style.opacity = skillOp;
+      skillCard.style.pointerEvents = skillOp > 0.5 ? 'auto' : 'none';
     }
-    if (aboutStep4) {
-      aboutStep4.style.opacity = interpolateRange(progress, 0.74, 0.90, 1.0, 1.0);
-      aboutStep4.style.transform = 'translateY(' + ((1 - clamp01((progress - 0.74) / 0.16)) * 22) + 'px)';
-    }
+  }
+
+  /* Below the 2-column breakpoint the Education and Skills cards share one grid
+     cell, stacked on top of each other, so they can cross-fade without the
+     section growing taller than the stage. The cell is pinned to the taller of
+     the two, measured while both are still in normal flow. */
+  function layoutAboutCards() {
+    const grid = document.querySelector('.about-split-grid');
+    if (!grid || !eduCard || !skillCard) return;
+    const cards = [eduCard, skillCard];
+
+    cards.forEach(c => { c.style.position = ''; c.style.top = ''; c.style.left = ''; c.style.width = ''; });
+    grid.style.position = '';
+    grid.style.minHeight = '';
+
+    if (window.innerWidth > 1024) return;
+
+    const h = Math.max(eduCard.offsetHeight, skillCard.offsetHeight);
+    grid.style.position = 'relative';
+    grid.style.minHeight = h + 'px';
+    cards.forEach(c => { c.style.position = 'absolute'; c.style.top = '0'; c.style.left = '0'; c.style.width = '100%'; });
   }
 
   function clamp01(v) { return Math.min(1, Math.max(0, v)); }
@@ -330,10 +370,27 @@
     targetProgress = clamp01(y / trackScrollable());
     currentProgress += (targetProgress - currentProgress) * LERP_FACTOR;
 
-    // Hand the screen over to the document sections once they cover it.
-    const done = docSections ? (docSections.getBoundingClientRect().top < window.innerHeight * 0.25) : false;
-    if (done !== storyDone) {
-      storyDone = done;
+    // Hand the screen over to the document sections proportionally, so the
+    // fixed layers cross-fade smoothly in BOTH directions rather than snapping
+    // at a threshold when you scroll back up from Projects.
+    let handoff = 0;
+    if (docSections) {
+      const top = docSections.getBoundingClientRect().top;
+      const vh = window.innerHeight;
+      handoff = clamp01((vh - top) / (vh * 0.75));
+    }
+    if (canvasWrapper) {
+      canvasWrapper.style.opacity = 1 - handoff;
+      canvasWrapper.style.pointerEvents = handoff > 0.5 ? 'none' : '';
+    }
+    if (stageHome) stageHome.style.visibility = handoff >= 1 ? 'hidden' : '';
+    if (stageAbout) {
+      stageAbout.style.visibility = handoff >= 1 ? 'hidden' : '';
+      stageAbout.style.opacity = stageAboutOpacity * (1 - handoff);
+    }
+
+    if ((handoff >= 1) !== storyDone) {
+      storyDone = handoff >= 1;
       document.body.classList.toggle('story-done', storyDone);
     }
 
@@ -394,7 +451,7 @@
     if (exploreBtn) {
       exploreBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        scrollToTarget('about');
+        scrollToTarget('projects');
       });
     }
 
@@ -670,7 +727,9 @@
     renderCertificates();
     renderContacts();
     setupReveals();
+    layoutAboutCards();
     window.addEventListener('resize', resizeCanvas, { passive: true });
+    window.addEventListener('resize', layoutAboutCards, { passive: true });
 
     preloadDeviceFrames(currentDevice, () => setTimeout(reveal, 200));
 
