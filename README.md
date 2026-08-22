@@ -1,17 +1,43 @@
 # Harsh Patil — Portfolio
 
-Personal portfolio site: data science, machine learning, generative AI and data
+Personal portfolio: data science, machine learning, generative AI and data
 analytics work.
 
-Static site, no build step. `index.html` holds the markup and the component
-logic; `support.js` is the runtime that mounts it and pulls React, ReactDOM and
-Babel from unpkg at load. Certificate and project images live in `uploads/`,
-alongside the resume PDF.
+Static site, no build step and no framework. Plain HTML, CSS and one vanilla JS
+file.
+
+## Structure
+
+| | |
+| --- | --- |
+| `index.html` | Markup for every section |
+| `styles.css` | Design system, scroll choreography, section styles |
+| `app.js` | Canvas engine, scroll narrative, section rendering, lightbox |
+| `frames/` | 120-frame scroll animation, per breakpoint, AVIF + WebP |
+| `uploads/` | Project and certificate images, resume PDF |
+
+All editable content — projects, certificates, links, resume path — lives in the
+`CONFIG` block at the top of `app.js`. Cards are rendered from it, so adding a
+project means adding one array entry.
+
+## How the page works
+
+The first ~5.5 viewport-heights are a **scroll track**: a fixed canvas plays a
+120-frame sequence scrubbed by scroll position, while the Home and About stages
+fade in and out over it on a choreographed timeline. Once the document sections
+reach the top of the screen the fixed layers hand off (`body.story-done`) and
+Projects / Certifications / Contact scroll normally.
+
+Frames are AVIF, with WebP as a fallback. The format is chosen at runtime by
+probing a real frame — if the AVIF decodes, AVIF is used; otherwise WebP.
+
+The page reveals once the first 24 frames are in rather than waiting for all
+120, with an 8-second safety timeout so a visitor is never stuck behind the
+preloader.
 
 ## Running locally
 
-It must be served over HTTP — opening the file directly with `file://` will not
-work, and the first paint needs network access for the CDN scripts.
+Must be served over HTTP — `file://` will not work.
 
 ```bash
 python -m http.server 8321
