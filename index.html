@@ -385,7 +385,9 @@
 
           <!-- Portrait at the core of the globe -->
           <div style="position:absolute;inset:28%;border-radius:50%;overflow:hidden;border:2px solid rgba(168,85,247,.55);box-shadow:0 0 0 6px rgba(139,92,246,.10),0 0 46px rgba(139,92,246,.45),inset 0 0 30px rgba(10,10,15,.55);background:#0A0A0F">
-            <img src="uploads/harsh-portrait.jpg" alt="Harsh Patil" loading="lazy" style="position:absolute;top:0;left:-10%;width:120%;height:120%;object-fit:cover;display:block" />
+            <!-- Headshot is already a tight crop, so only a slight zoom to trim
+                 background from the corners. A larger scale clips the hair. -->
+            <img src="uploads/harsh-portrait.jpg" alt="Harsh Patil" loading="lazy" style="position:absolute;top:-4%;left:-4%;width:108%;height:108%;object-fit:cover;display:block" />
           </div>
 
           <div style="position:absolute;left:22%;top:30%;width:9px;height:9px;border-radius:50%;background:#C4B5FD;box-shadow:0 0 14px #A855F7"></div>
