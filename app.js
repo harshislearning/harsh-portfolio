@@ -1,12 +1,10 @@
 /**
  * HARSH PATIL — PORTFOLIO ENGINE
  *
- * - 120-frame responsive canvas scrubbing (desktop / tablet / mobile)
- * - AVIF frames with automatic WebP fallback
- * - Dual-buffer LERP interpolation for smooth scrubbing
- * - Step-by-step scroll choreography for Home & About
- * - Document sections (Projects / Certifications / Contact) rendered from CONFIG
- * - Lightbox: PDF.js for the resume, plain image for certificates
+ * - Three.js point cloud behind the hero (lazy-loaded, guarded, pausable)
+ * - GSAP ScrollTrigger for reveals and the hero scrub (no scroll listeners)
+ * - Projects / certificates / contacts rendered from CONFIG
+ * - Lightbox: PDF.js canvas rendering for the resume, image for certificates
  */
 
 (function () {
@@ -25,7 +23,6 @@
       email: 'mailto:workidharsh29@gmail.com'
     },
 
-    // category: "RAG" | "ML" | "GenAI" — drives badge colour
     projects: [
       {
         title: 'Ask My Docs',
@@ -85,12 +82,6 @@
     ]
   };
 
-  const BADGE = {
-    RAG:   { color: '#C4B5FD', bg: 'rgba(139,92,246,.16)', border: 'rgba(139,92,246,.45)', thumbBg: 'linear-gradient(140deg,rgba(46,28,84,.95),rgba(13,11,20,.95))' },
-    ML:    { color: '#A5B4FC', bg: 'rgba(99,102,241,.16)', border: 'rgba(99,102,241,.45)', thumbBg: 'linear-gradient(140deg,rgba(28,32,78,.95),rgba(13,11,20,.95))' },
-    GenAI: { color: '#F0ABFC', bg: 'rgba(217,70,239,.14)', border: 'rgba(217,70,239,.42)', thumbBg: 'linear-gradient(140deg,rgba(62,24,74,.95),rgba(13,11,20,.95))' }
-  };
-
   const CONTACTS = [
     { icon: '{ }', label: 'GitHub',   desc: 'Check out my code and open-source projects', meta: 'github.com/harshislearning',              href: CONFIG.links.github },
     { icon: 'in',  label: 'LinkedIn', desc: "Let's connect professionally on LinkedIn",   meta: 'linkedin.com/in/harsh-patil-247195253', href: CONFIG.links.linkedin },
@@ -105,400 +96,67 @@
     { label: 'Contact', id: 'contact' }
   ];
 
-  /* =====================================================================
-     CANVAS SCRUBBING ENGINE
-     ===================================================================== */
-  const TOTAL_FRAMES = 120;
-  const LERP_FACTOR = 0.085;
-  const PRIORITY_FRAMES = 24;   // reveal the page once these are in
+  const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js';
+  const PDFJS_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
+  const PDFJS_WORKER_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
-  const canvas = document.getElementById('animation-canvas');
-  const ctx = canvas.getContext('2d', { alpha: false });
-  const preloader = document.getElementById('preloader');
-  const preloaderBar = document.getElementById('preloader-bar');
-  const preloaderPercent = document.getElementById('preloader-percent');
-  const timelineFill = document.getElementById('timeline-fill');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const navLinks = document.querySelectorAll('.nav-link');
-  const mobileToggle = document.getElementById('mobile-toggle');
-  const navMenu = document.getElementById('nav-menu');
-  const exploreBtn = document.getElementById('explore-btn');
-
-  const track = document.getElementById('scroll-track');
-  const docSections = document.getElementById('doc-sections');
-
-  const stageHome = document.getElementById('stage-home');
-  const stageAbout = document.getElementById('stage-about');
-
-  const step1 = document.getElementById('step-1');
-  const step2 = document.getElementById('step-2');
-  const step3 = document.getElementById('step-3');
-  const step4 = document.getElementById('step-4');
-
-  const aboutStep1 = document.getElementById('about-step-1');
-  const aboutStep2 = document.getElementById('about-step-2');
-  const aboutStep3 = document.getElementById('about-step-3');
-  const aboutStep4 = document.getElementById('about-step-4');
-  const eduCard = document.querySelector('.education-card');
-  const skillCard = document.querySelector('.skills-card');
-  const canvasWrapper = document.getElementById('canvas-wrapper');
-
-  let frameExt = 'avif';
-  let currentDevice = getDeviceType();
-  const imageCache = { desktop: [], tablet: [], mobile: [] };
-
-  let targetProgress = 0;
-  let currentProgress = 0;
-  let currentFrameIndex = 0;
-  let storyDone = false;
-  let stageAboutOpacity = 0;   // narrative opacity, before the handoff fade
-
-  function getDeviceType() {
-    const w = window.innerWidth;
-    if (w > 1024) return 'desktop';
-    if (w >= 768) return 'tablet';
-    return 'mobile';
-  }
-
-  function getFramePath(device, index) {
-    return 'frames/' + device + '/frame_' + String(index + 1).padStart(4, '0') + '.' + frameExt;
-  }
-
-  function resizeCanvas() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = window.innerWidth * dpr;
-    canvas.height = window.innerHeight * dpr;
-
-    const next = getDeviceType();
-    if (next !== currentDevice) {
-      currentDevice = next;
-      preloadDeviceFrames(currentDevice);
-    }
-    renderCurrentFrame();
-  }
-
-  function renderFrame(img) {
-    if (!img || !img.complete || img.naturalWidth === 0) return;
-    const cw = canvas.width, ch = canvas.height;
-    const ir = img.naturalWidth / img.naturalHeight;
-    const cr = cw / ch;
-    let rw, rh, ox, oy;
-    if (cr > ir) { rw = cw; rh = cw / ir; ox = 0; oy = (ch - rh) / 2; }
-    else { rh = ch; rw = ch * ir; oy = 0; ox = (cw - rw) / 2; }
-    ctx.drawImage(img, ox, oy, rw, rh);
-  }
-
-  function renderCurrentFrame() {
-    const frames = imageCache[currentDevice];
-    const img = frames && frames[currentFrameIndex];
-    if (img && img.complete && img.naturalWidth > 0) {
-      renderFrame(img);
-      return;
-    }
-    // Requested frame not in yet — fall back to the nearest earlier one.
-    for (let i = currentFrameIndex - 1; i >= 0; i--) {
-      const f = frames && frames[i];
-      if (f && f.complete && f.naturalWidth > 0) { renderFrame(f); return; }
-    }
-  }
-
-  function preloadDeviceFrames(device, onPriority) {
-    if (imageCache[device].length === TOTAL_FRAMES) {
-      if (onPriority) onPriority();
-      return;
-    }
-    let loaded = 0;
-    let priorityFired = false;
-    const frames = [];
-    imageCache[device] = frames;
-
-    for (let i = 0; i < TOTAL_FRAMES; i++) {
-      const img = new Image();
-      const done = () => {
-        loaded++;
-        if (i === 0) renderCurrentFrame();
-        if (!priorityFired && loaded >= Math.min(PRIORITY_FRAMES, TOTAL_FRAMES)) {
-          priorityFired = true;
-          if (onPriority) onPriority();
-        }
-        if (onPriority && !priorityFired) {
-          const pct = Math.round((loaded / PRIORITY_FRAMES) * 100);
-          if (preloaderBar) preloaderBar.style.width = pct + '%';
-          if (preloaderPercent) preloaderPercent.textContent = pct + '%';
-        }
-      };
-      img.onload = done;
-      img.onerror = done;
-      img.src = getFramePath(device, i);
-      frames.push(img);
-    }
-  }
+  const modalRoot = document.getElementById('modal-root');
 
   /* =====================================================================
-     SCROLL NARRATIVE — timings exactly as authored
-     ===================================================================== */
-  function interpolateRange(p, start, full, exitStart, exitEnd) {
-    if (p < start) return 0;
-    // start === full means "already fully in" — used by the hero so the page
-    // is not blank at rest on first load (progress is exactly 0 there).
-    if (p <= full) return full === start ? 1 : (p - start) / (full - start);
-    if (p <= exitStart) return 1;
-    if (p <= exitEnd) return 1 - ((p - exitStart) / (exitEnd - exitStart));
-    return 0;
-  }
-
-  // Opacity + interactivity together. The stylesheet used to gate clicks behind
-  // a .visible class that was never applied, which made every hero button dead.
-  // `collapse` takes a faded-out block out of layout flow, so the block that
-  // replaces it can occupy the stage instead of being pushed below it.
-  function paint(node, opacity, offsetY, collapse) {
-    if (!node) return;
-    node.style.opacity = opacity;
-    if (offsetY != null) node.style.transform = 'translateY(' + offsetY + 'px)';
-    node.style.pointerEvents = opacity > 0.5 ? 'auto' : 'none';
-    if (collapse) node.style.display = opacity <= 0.01 ? 'none' : '';
-  }
-
-  function updateScrollNarrative(progress) {
-    if (timelineFill) timelineFill.style.width = Math.min(100, progress * 100) + '%';
-
-    // STAGE 1: HOME (0.00 → 0.44)
-    const homeOpacity = interpolateRange(progress, 0.00, 0.00, 0.38, 0.44);
-    if (stageHome) {
-      stageHome.style.opacity = homeOpacity;
-      stageHome.style.pointerEvents = homeOpacity > 0.2 ? 'auto' : 'none';
-      stageHome.style.transform = 'translateY(' + (progress * -30) + 'px)';
-    }
-
-    paint(step1, interpolateRange(progress, 0.00, 0.00, 0.38, 0.44), 0);
-    paint(step2, interpolateRange(progress, 0.03, 0.10, 0.38, 0.44), (1 - clamp01((progress - 0.03) / 0.07)) * 16);
-    paint(step3, interpolateRange(progress, 0.10, 0.20, 0.38, 0.44), (1 - clamp01((progress - 0.10) / 0.10)) * 18);
-    paint(step4, interpolateRange(progress, 0.20, 0.32, 0.38, 0.44), (1 - clamp01((progress - 0.20) / 0.12)) * 16);
-
-    // STAGE 2: ABOUT (0.44 → 1.00)
-    const aboutOpacity = interpolateRange(progress, 0.44, 0.50, 1.0, 1.0);
-    stageAboutOpacity = aboutOpacity;
-    if (stageAbout) {
-      // Final opacity is applied in tick(), which also folds in the handoff fade.
-      stageAbout.style.pointerEvents = aboutOpacity > 0.2 ? 'auto' : 'none';
-      stageAbout.classList.toggle('active', aboutOpacity > 0.01);
-    }
-    // The intro block (header + narrative + stats) hands over to the
-    // Education/Skills cards rather than stacking with them — otherwise the
-    // section is taller than any real viewport and needs a nested scrollbar.
-    paint(aboutStep1, interpolateRange(progress, 0.45, 0.51, 0.72, 0.78), (1 - clamp01((progress - 0.45) / 0.06)) * 22, true);
-    paint(aboutStep2, interpolateRange(progress, 0.52, 0.59, 0.72, 0.78), (1 - clamp01((progress - 0.52) / 0.07)) * 22, true);
-    paint(aboutStep3, interpolateRange(progress, 0.60, 0.67, 0.72, 0.78), (1 - clamp01((progress - 0.60) / 0.07)) * 20, true);
-
-    // Below the 2-column breakpoint the two cards stack, which again overflows,
-    // so on narrow screens they take the stage one at a time.
-    const twoCol = window.innerWidth > 1024;
-    let eduOp, skillOp;
-    if (twoCol) {
-      eduOp = skillOp = interpolateRange(progress, 0.78, 0.88, 1.0, 1.0);
-    } else {
-      // Stacked on one grid cell (see layoutAboutCards), so they can overlap
-      // through a true cross-fade with no blank frame between them.
-      eduOp = interpolateRange(progress, 0.76, 0.83, 0.87, 0.92);
-      skillOp = interpolateRange(progress, 0.87, 0.92, 1.0, 1.0);
-    }
-
-    const wrap = Math.max(eduOp, skillOp);
-    paint(aboutStep4, wrap, (1 - clamp01((progress - 0.76) / 0.10)) * 22, true);
-    if (eduCard) {
-      eduCard.style.opacity = eduOp;
-      eduCard.style.pointerEvents = eduOp > 0.5 ? 'auto' : 'none';
-    }
-    if (skillCard) {
-      skillCard.style.opacity = skillOp;
-      skillCard.style.pointerEvents = skillOp > 0.5 ? 'auto' : 'none';
-    }
-  }
-
-  /* Below the 2-column breakpoint the Education and Skills cards share one grid
-     cell, stacked on top of each other, so they can cross-fade without the
-     section growing taller than the stage. The cell is pinned to the taller of
-     the two, measured while both are still in normal flow. */
-  function layoutAboutCards() {
-    const grid = document.querySelector('.about-split-grid');
-    if (!grid || !eduCard || !skillCard) return;
-    const cards = [eduCard, skillCard];
-
-    cards.forEach(c => { c.style.position = ''; c.style.top = ''; c.style.left = ''; c.style.width = ''; });
-    grid.style.position = '';
-    grid.style.minHeight = '';
-
-    if (window.innerWidth > 1024) return;
-
-    const h = Math.max(eduCard.offsetHeight, skillCard.offsetHeight);
-    grid.style.position = 'relative';
-    grid.style.minHeight = h + 'px';
-    cards.forEach(c => { c.style.position = 'absolute'; c.style.top = '0'; c.style.left = '0'; c.style.width = '100%'; });
-  }
-
-  function clamp01(v) { return Math.min(1, Math.max(0, v)); }
-
-  /* =====================================================================
-     SCROLL SPY — spans the fixed story track and the document sections
-     ===================================================================== */
-  function setActiveNav(id) {
-    navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('data-nav') === id));
-  }
-
-  function updateActiveSection(progress) {
-    if (!storyDone) {
-      setActiveNav(progress < 0.46 ? 'home' : 'about');
-      return;
-    }
-    let active = 'projects';
-    ['projects', 'certifications', 'contact'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.45) active = id;
-    });
-    setActiveNav(active);
-  }
-
-  /* =====================================================================
-     MAIN LOOP
-     ===================================================================== */
-  function trackScrollable() {
-    return Math.max(1, track.offsetHeight - window.innerHeight);
-  }
-
-  function tick() {
-    const y = window.scrollY || window.pageYOffset || 0;
-    targetProgress = clamp01(y / trackScrollable());
-    currentProgress += (targetProgress - currentProgress) * LERP_FACTOR;
-
-    // Hand the screen over to the document sections proportionally, so the
-    // fixed layers cross-fade smoothly in BOTH directions rather than snapping
-    // at a threshold when you scroll back up from Projects.
-    let handoff = 0;
-    if (docSections) {
-      const top = docSections.getBoundingClientRect().top;
-      const vh = window.innerHeight;
-      handoff = clamp01((vh - top) / (vh * 0.75));
-    }
-    if (canvasWrapper) {
-      canvasWrapper.style.opacity = 1 - handoff;
-      canvasWrapper.style.pointerEvents = handoff > 0.5 ? 'none' : '';
-    }
-    if (stageHome) stageHome.style.visibility = handoff >= 1 ? 'hidden' : '';
-    if (stageAbout) {
-      stageAbout.style.visibility = handoff >= 1 ? 'hidden' : '';
-      stageAbout.style.opacity = stageAboutOpacity * (1 - handoff);
-    }
-
-    if ((handoff >= 1) !== storyDone) {
-      storyDone = handoff >= 1;
-      document.body.classList.toggle('story-done', storyDone);
-    }
-
-    if (!storyDone) {
-      const frame = Math.min(TOTAL_FRAMES - 1, Math.max(0, Math.round(currentProgress * (TOTAL_FRAMES - 1))));
-      if (frame !== currentFrameIndex) {
-        currentFrameIndex = frame;
-        renderCurrentFrame();
-      }
-      updateScrollNarrative(currentProgress);
-    }
-
-    updateActiveSection(currentProgress);
-    requestAnimationFrame(tick);
-  }
-
-  /* =====================================================================
-     NAVIGATION
-     ===================================================================== */
-  // Document offset. offsetTop is relative to the offsetParent (.doc-sections
-  // is positioned), so it cannot be used directly as a scroll target.
-  function absTop(node) {
-    return node.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
-  }
-
-  function scrollToTarget(id) {
-    if (id === 'home') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (id === 'about') {
-      window.scrollTo({ top: trackScrollable() * 0.50, behavior: 'smooth' });
-    } else {
-      const node = document.getElementById(id);
-      if (node) window.scrollTo({ top: Math.max(0, absTop(node) - 90), behavior: 'smooth' });
-    }
-  }
-
-  function setupInteractions() {
-    document.addEventListener('click', (e) => {
-      // Resume buttons (navbar + hero)
-      const resumeBtn = e.target.closest('[data-action="resume"]');
-      if (resumeBtn) {
-        e.preventDefault();
-        openPdf('Resume — Harsh Patil', CONFIG.resumePdf);
-        return;
-      }
-
-      // Nav links and brand
-      const navEl = e.target.closest('[data-nav]');
-      if (navEl) {
-        e.preventDefault();
-        const id = navEl.getAttribute('data-nav');
-        if (navMenu) navMenu.classList.remove('open');
-        setActiveNav(id);
-        scrollToTarget(id);
-      }
-    });
-
-    if (exploreBtn) {
-      exploreBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        scrollToTarget('projects');
-      });
-    }
-
-    if (mobileToggle && navMenu) {
-      mobileToggle.addEventListener('click', () => navMenu.classList.toggle('open'));
-    }
-
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
-  }
-
-  /* =====================================================================
-     DOCUMENT SECTIONS — rendered from CONFIG
+     SMALL HELPERS
      ===================================================================== */
   function el(tag, attrs, html) {
     const n = document.createElement(tag);
-    if (attrs) Object.keys(attrs).forEach(k => n.setAttribute(k, attrs[k]));
+    if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     if (html != null) n.innerHTML = html;
     return n;
   }
 
   function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(s).replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
   }
 
+  /* =====================================================================
+     SECTION RENDERING
+     ===================================================================== */
   function renderProjects() {
     const grid = document.getElementById('projects-grid');
     if (!grid) return;
-    CONFIG.projects.forEach(p => {
-      const b = BADGE[p.category] || BADGE.ML;
-      const card = el('article', { class: 'proj-card reveal' });
-      card.innerHTML =
-        '<div style="position:relative;aspect-ratio:16/9;background:' + b.thumbBg + '">' +
-          '<img src="' + esc(p.image) + '" alt="' + esc(p.title) + ' screenshot" loading="lazy" ' +
-            'style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top left;display:block" />' +
-          '<span style="position:absolute;top:14px;left:14px;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.10em;text-transform:uppercase;color:' + b.color + ';background:' + b.bg + ';border:1px solid ' + b.border + '">' + esc(p.category) + '</span>' +
-        '</div>' +
-        '<div style="padding:22px;display:flex;flex-direction:column;gap:14px;flex:1">' +
-          '<h3 style="margin:0;font-family:\'Space Grotesk\',sans-serif;font-size:19px;font-weight:600;letter-spacing:-0.01em;line-height:1.3;color:#F5F5F7">' + esc(p.title) + '</h3>' +
-          '<p style="margin:-4px 0 0;font-size:14px;line-height:1.6;font-weight:500;color:#C4B5FD">' + esc(p.tagline) + '</p>' +
-          '<p style="margin:0;font-size:14.5px;line-height:1.7;color:#9CA3AF">' + esc(p.description) + '</p>' +
-          '<div style="display:flex;flex-wrap:wrap;gap:7px">' +
-            p.tech.map(t => '<span class="doc-chip">' + esc(t) + '</span>').join('') +
-          '</div>' +
-          '<div style="margin-top:auto;padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px">' +
-            '<a href="' + esc(p.github) + '" target="_blank" rel="noopener" style="display:flex;align-items:center;min-height:44px;font-size:14px;font-weight:600">View Details →</a>' +
-          '</div>' +
-        '</div>';
+
+    CONFIG.projects.forEach((p, i) => {
+      // First project is the featured cell and spans the row.
+      const card = el('article', { class: 'proj reveal' + (i === 0 ? ' proj-feature' : '') });
+
+      const media = el('div', { class: 'proj-media' });
+      media.appendChild(el('img', {
+        src: p.image,
+        alt: esc(p.title) + ' screenshot',
+        loading: i === 0 ? 'eager' : 'lazy',
+        decoding: 'async'
+      }));
+      card.appendChild(media);
+
+      const body = el('div', { class: 'proj-body' });
+      body.appendChild(el('span', { class: 'proj-cat' }, esc(p.category)));
+      body.appendChild(el('h3', { class: 'proj-title' }, esc(p.title)));
+      body.appendChild(el('p', { class: 'proj-tagline' }, esc(p.tagline)));
+      if (i === 0) body.appendChild(el('p', { class: 'proj-desc' }, esc(p.description)));
+
+      const tags = el('p', { class: 'tags' });
+      p.tech.forEach(t => tags.appendChild(el('span', { class: 'tag' }, esc(t))));
+      body.appendChild(tags);
+
+      const foot = el('div', { class: 'proj-foot' });
+      foot.appendChild(el('a', {
+        class: 'proj-link', href: p.github, target: '_blank', rel: 'noopener'
+      }, 'View on GitHub <span aria-hidden="true">&rarr;</span>'));
+      body.appendChild(foot);
+
+      card.appendChild(body);
       grid.appendChild(card);
     });
   }
@@ -506,18 +164,21 @@
   function renderCertificates() {
     const grid = document.getElementById('certs-grid');
     if (!grid) return;
+
     CONFIG.certificates.forEach(c => {
-      const card = el('button', { class: 'cert-card reveal', type: 'button' });
-      card.innerHTML =
-        '<div style="position:relative;aspect-ratio:4/3;background:linear-gradient(150deg,rgba(30,22,54,.95),rgba(14,12,24,.95))">' +
-          '<img src="' + esc(c.thumb) + '" alt="' + esc(c.title) + ' certificate" loading="lazy" ' +
-            'style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block" />' +
-        '</div>' +
-        '<div style="padding:18px;display:flex;flex-direction:column;gap:7px;flex:1">' +
-          '<p style="margin:0;font-size:15px;font-weight:600;line-height:1.4;color:#F5F5F7">' + esc(c.title) + '</p>' +
-          '<p style="margin:0;font-size:13px;color:#8B8798">' + esc(c.issuer) + '</p>' +
-          '<span style="margin-top:auto;padding-top:10px;font-size:13.5px;font-weight:600;color:#A855F7">View Certificate →</span>' +
-        '</div>';
+      const card = el('button', { class: 'cert reveal', type: 'button' });
+
+      const media = el('div', { class: 'cert-media' });
+      media.appendChild(el('img', {
+        src: c.thumb, alt: esc(c.title) + ' certificate', loading: 'lazy', decoding: 'async'
+      }));
+      card.appendChild(media);
+
+      const body = el('div', { class: 'cert-body' });
+      body.appendChild(el('h3', { class: 'cert-title' }, esc(c.title)));
+      body.appendChild(el('p', { class: 'cert-issuer' }, esc(c.issuer)));
+      card.appendChild(body);
+
       card.addEventListener('click', () => openImage(c.title, c.thumb, c.credential));
       grid.appendChild(card);
     });
@@ -527,59 +188,385 @@
     const list = document.getElementById('contact-list');
     if (list) {
       CONTACTS.forEach(c => {
-        const a = el('a', { class: 'contact-card', href: c.href, target: '_blank', rel: 'noopener' });
-        a.innerHTML =
-          '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:17px;font-family:ui-monospace,Menlo,monospace;font-weight:600;color:#EDE9FE;background:linear-gradient(135deg,rgba(139,92,246,.30),rgba(99,102,241,.20));border:1px solid rgba(139,92,246,.35)">' + esc(c.icon) + '</span>' +
-          '<span style="flex:1">' +
-            '<span style="display:block;font-size:15.5px;font-weight:600;color:#F5F5F7">' + esc(c.label) + '</span>' +
-            '<span style="display:block;margin-top:3px;font-size:13.5px;color:#8B8798">' + esc(c.desc) + '</span>' +
-            '<span style="display:block;margin-top:4px;font-size:12.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#A855F7;word-break:break-all">' + esc(c.meta) + '</span>' +
-          '</span>' +
-          '<span style="font-size:17px;color:#A855F7">→</span>';
+        const a = el('a', {
+          class: 'contact-card', href: c.href,
+          target: c.href.startsWith('mailto:') ? '_self' : '_blank', rel: 'noopener'
+        });
+        a.appendChild(el('span', { class: 'contact-icon' }, esc(c.icon)));
+        const txt = el('span');
+        txt.appendChild(el('p', { class: 'contact-label' }, esc(c.label)));
+        txt.appendChild(el('p', { class: 'contact-desc' }, esc(c.desc)));
+        txt.appendChild(el('p', { class: 'contact-meta' }, esc(c.meta)));
+        a.appendChild(txt);
         list.appendChild(a);
       });
     }
 
-    const fl = document.getElementById('footer-links');
-    if (fl) {
+    const links = document.getElementById('footer-links');
+    if (links) {
       NAV.forEach(n => {
-        const a = el('a', { href: '#' + n.id, 'data-nav': n.id, style: 'display:flex;align-items:center;min-height:44px;font-size:14.5px;color:#9CA3AF' }, esc(n.label));
-        fl.appendChild(a);
+        links.appendChild(el('a', { href: '#' + n.id, 'data-nav': n.id }, esc(n.label)));
       });
     }
 
-    const fc = document.getElementById('footer-connect');
-    if (fc) {
+    const connect = document.getElementById('footer-connect');
+    if (connect) {
       CONTACTS.forEach(c => {
-        const a = el('a', { href: c.href, target: '_blank', rel: 'noopener', style: 'display:flex;align-items:center;gap:11px;min-height:44px;font-size:14.5px;color:#9CA3AF' },
-          '<span style="font-family:ui-monospace,Menlo,monospace;font-size:13px;color:#A855F7">' + esc(c.icon) + '</span><span>' + esc(c.label) + '</span>');
-        fc.appendChild(a);
+        connect.appendChild(el('a', {
+          href: c.href,
+          target: c.href.startsWith('mailto:') ? '_self' : '_blank',
+          rel: 'noopener'
+        }, esc(c.label)));
       });
     }
   }
 
-  function setupReveals() {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(en => {
-        if (en.isIntersecting) {
-          en.target.classList.add('shown');
-          io.unobserve(en.target);
+  /* =====================================================================
+     NAVIGATION
+     ===================================================================== */
+  function absTop(node) {
+    // Document offset. offsetTop is relative to the offsetParent, so it
+    // cannot be used directly as a scroll target.
+    return node.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
+  }
+
+  function scrollToId(id) {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const top = Math.max(0, absTop(target) - (id === 'home' ? 0 : 78));
+    window.scrollTo({ top: top, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+
+  function setupNav() {
+    const toggle = document.getElementById('nav-toggle');
+    const links = document.getElementById('nav-links');
+
+    if (toggle && links) {
+      toggle.addEventListener('click', () => {
+        const open = links.classList.toggle('is-open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const resume = e.target.closest('[data-action="resume"]');
+      if (resume) {
+        e.preventDefault();
+        openPdf('Harsh Patil — Resume', CONFIG.resumePdf);
+        return;
+      }
+
+      const jump = e.target.closest('a[href^="#"]');
+      if (jump) {
+        const id = jump.getAttribute('href').slice(1);
+        if (!id || !document.getElementById(id)) return;
+        e.preventDefault();
+        scrollToId(id);
+        if (links && links.classList.contains('is-open')) {
+          links.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (modalRoot.firstChild) closeModal();
+        else if (links && links.classList.contains('is-open')) {
+          links.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
+  }
+
+  function setActiveNav(id) {
+    document.querySelectorAll('.nav-link').forEach(a => {
+      a.classList.toggle('is-active', a.getAttribute('data-nav') === id);
+    });
+  }
+
+  /* =====================================================================
+     SCROLL CHOREOGRAPHY (GSAP ScrollTrigger — no scroll listeners)
+     ===================================================================== */
+  let heroProgress = 0;
+
+  function setupScroll() {
+    const reveals = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+
+    if (reduceMotion || !window.gsap || !window.ScrollTrigger) {
+      reveals.forEach(n => n.classList.add('is-in'));
+      setupSectionSpy();
+      return;
+    }
+
+    const gsap = window.gsap;
+    const ScrollTrigger = window.ScrollTrigger;
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Reveals: batched so a grid of cards staggers as one group rather than
+    // firing one trigger per card.
+    ScrollTrigger.batch(reveals, {
+      start: 'top 86%',
+      once: true,
+      onEnter: batch => {
+        batch.forEach((n, i) => setTimeout(() => n.classList.add('is-in'), i * 70));
+      }
+    });
+
+    // Hero scrub drives both the portrait parallax and the point-cloud
+    // dispersion, so the 3D reacts to scroll without its own listener.
+    const portrait = document.getElementById('hero-portrait');
+    ScrollTrigger.create({
+      trigger: '#home',
+      start: 'top top',
+      end: 'bottom top',
+      scrub: true,
+      onUpdate: self => {
+        heroProgress = self.progress;
+        if (portrait) {
+          portrait.style.transform =
+            'translate3d(0,' + (self.progress * 64).toFixed(2) + 'px,0) scale(' +
+            (1 - self.progress * 0.06).toFixed(4) + ')';
+        }
+      }
+    });
+
+    // Metric counters.
+    document.querySelectorAll('.metric dd').forEach(node => {
+      const target = parseFloat(node.getAttribute('data-count'));
+      const decimals = parseInt(node.getAttribute('data-decimals') || '0', 10);
+      const suffix = node.getAttribute('data-suffix') || '';
+      if (isNaN(target)) return;
+
+      const obj = { v: 0 };
+      ScrollTrigger.create({
+        trigger: node,
+        start: 'top 92%',
+        once: true,
+        onEnter: () => {
+          gsap.to(obj, {
+            v: target,
+            duration: 1.1,
+            ease: 'power2.out',
+            onUpdate: () => { node.textContent = obj.v.toFixed(decimals) + suffix; }
+          });
         }
       });
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
-    document.querySelectorAll('.reveal').forEach(n => io.observe(n));
+    });
+
+    setupSectionSpy();
+  }
+
+  function setupSectionSpy() {
+    const ids = NAV.map(n => n.id);
+    const sections = ids.map(id => document.getElementById(id)).filter(Boolean);
+    if (!sections.length) return;
+
+    // IntersectionObserver rather than a scroll handler. rootMargin biases
+    // the "active" band toward the upper third of the viewport.
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(en => { if (en.isIntersecting) setActiveNav(en.target.id); });
+    }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+
+    sections.forEach(s => io.observe(s));
+  }
+
+  /* =====================================================================
+     HERO POINT CLOUD (Three.js)
+
+     A drifting cloud of points standing in for an embedding space: it is
+     the shape of the work on this page, not decoration for its own sake.
+     Three layers — ambient drift, pointer parallax, scroll dispersion.
+     ===================================================================== */
+  function webglAvailable() {
+    try {
+      const c = document.createElement('canvas');
+      return !!(window.WebGLRenderingContext &&
+                (c.getContext('webgl') || c.getContext('experimental-webgl')));
+    } catch (e) { return false; }
+  }
+
+  function dotTexture(THREE) {
+    const size = 64;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    grd.addColorStop(0.0, 'rgba(255,255,255,1)');
+    grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+    grd.addColorStop(1.0, 'rgba(255,255,255,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, size, size);
+    const tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  function buildLayer(THREE, count, radius, size, texture, tight) {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    const col = new Float32Array(count * 3);
+
+    const near = new THREE.Color('#E9E2FF');
+    const far = new THREE.Color('#7C5CE6');
+    const tmp = new THREE.Color();
+
+    for (let i = 0; i < count; i++) {
+      // Even angular spread, random radius biased outward for a shell look.
+      const u = Math.random() * 2 - 1;
+      const theta = Math.random() * Math.PI * 2;
+      const r = radius * (tight ? Math.cbrt(Math.random()) : 0.55 + Math.random() * 0.45);
+      const s = Math.sqrt(1 - u * u);
+
+      pos[i * 3]     = r * s * Math.cos(theta);
+      pos[i * 3 + 1] = r * s * Math.sin(theta) * 0.82;   // slightly oblate
+      pos[i * 3 + 2] = r * u;
+
+      tmp.copy(far).lerp(near, Math.random() * 0.85);
+      col[i * 3] = tmp.r; col[i * 3 + 1] = tmp.g; col[i * 3 + 2] = tmp.b;
+    }
+
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+
+    const mat = new THREE.PointsMaterial({
+      size: size,
+      map: texture,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending
+    });
+
+    return new THREE.Points(geo, mat);
+  }
+
+  async function initHero3D() {
+    const host = document.getElementById('hero-canvas');
+    if (!host || reduceMotion || !webglAvailable()) return;
+
+    let THREE;
+    try {
+      THREE = await import(THREE_URL);
+    } catch (e) {
+      // CDN unreachable — the CSS gradient fallback is already showing.
+      return;
+    }
+
+    const w0 = host.clientWidth || window.innerWidth;
+    const h0 = host.clientHeight || window.innerHeight;
+    const mobile = window.innerWidth < 768;
+    const tablet = window.innerWidth < 1024;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: !mobile, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2));
+    renderer.setSize(w0, h0, false);
+    renderer.setClearColor(0x000000, 0);
+    host.appendChild(renderer.domElement);
+    host.classList.add('is-live');
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(58, w0 / h0, 0.1, 100);
+    camera.position.z = 7.2;
+
+    const tex = dotTexture(THREE);
+    const group = new THREE.Group();
+
+    const dense = mobile ? 620 : tablet ? 1250 : 2400;
+    const sparse = mobile ? 90 : tablet ? 170 : 290;
+
+    const core = buildLayer(THREE, dense, 4.1, mobile ? 0.055 : 0.045, tex, true);
+    const halo = buildLayer(THREE, sparse, 5.4, mobile ? 0.13 : 0.115, tex, false);
+    group.add(core, halo);
+
+    // Offset toward the portrait side on wide screens; centred when stacked.
+    group.position.x = window.innerWidth < 900 ? 0 : 1.9;
+    scene.add(group);
+
+    const pointer = { x: 0, y: 0 };
+    const target = { x: 0, y: 0 };
+
+    if (!mobile) {
+      window.addEventListener('pointermove', (e) => {
+        target.x = (e.clientX / window.innerWidth - 0.5) * 2;
+        target.y = (e.clientY / window.innerHeight - 0.5) * 2;
+      }, { passive: true });
+    }
+
+    // Pause when the hero is off-screen or the tab is hidden. A WebGL loop
+    // running behind the Projects section is pure battery cost.
+    let visible = true;
+    let hidden = document.hidden;
+    const io = new IntersectionObserver(
+      entries => { visible = entries[0].isIntersecting; },
+      { threshold: 0 }
+    );
+    io.observe(host);
+    document.addEventListener('visibilitychange', () => { hidden = document.hidden; });
+
+    const ro = new ResizeObserver(() => {
+      const w = host.clientWidth, h = host.clientHeight;
+      if (!w || !h) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+      group.position.x = window.innerWidth < 900 ? 0 : 1.9;
+    });
+    ro.observe(host);
+
+    const clock = new THREE.Clock();
+    let raf = 0;
+
+    function frame() {
+      raf = requestAnimationFrame(frame);
+      if (!visible || hidden) return;
+
+      const dt = Math.min(clock.getDelta(), 0.05);
+
+      // Ambient: continuous slow drift.
+      group.rotation.y += dt * 0.045;
+      core.rotation.z += dt * 0.012;
+      halo.rotation.z -= dt * 0.008;
+
+      // Secondary: pointer parallax, eased rather than snapped.
+      pointer.x += (target.x - pointer.x) * 0.045;
+      pointer.y += (target.y - pointer.y) * 0.045;
+      group.rotation.x = pointer.y * 0.22;
+      camera.position.x = pointer.x * 0.45;
+      camera.lookAt(0, 0, 0);
+
+      // Primary: the cloud expands and fades as the hero scrolls away.
+      const p = heroProgress;
+      group.scale.setScalar(1 + p * 0.75);
+      core.material.opacity = 0.9 * (1 - p);
+      halo.material.opacity = 0.9 * (1 - p);
+
+      renderer.render(scene, camera);
+    }
+    frame();
+
+    window.addEventListener('pagehide', () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      ro.disconnect();
+      core.geometry.dispose(); core.material.dispose();
+      halo.geometry.dispose(); halo.material.dispose();
+      tex.dispose();
+      renderer.dispose();
+    });
   }
 
   /* =====================================================================
      LIGHTBOX — PDF.js for the resume, plain image for certificates
      ===================================================================== */
-  const PDFJS_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
-  const PDFJS_WORKER_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-  const modalRoot = document.getElementById('modal-root');
-
   let pdfLibPromise = null;
-  let pdfDoc = null, pdfDocSrc = null;
-  let pdfToken = 0, pdfRenderedWidth = 0, pdfRO = null, pdfResizeT = 0;
+  let pdfDoc = null, pdfDocSrc = '';
+  let pdfToken = 0, pdfRenderedWidth = 0;
+  let pdfRO = null, pdfResizeT = 0;
 
   function loadPdfJs() {
     if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
@@ -601,7 +588,7 @@
   function buildModal(title, credential, openHref, openLabel) {
     modalRoot.innerHTML = '';
     const backdrop = el('div', { class: 'modal-backdrop' });
-    const panel = el('div', { class: 'modal-panel' });
+    const panel = el('div', { class: 'modal-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': esc(title) });
 
     const head = el('div', { class: 'modal-head' });
     head.appendChild(el('p', { class: 'modal-title' }, esc(title)));
@@ -626,6 +613,7 @@
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
     modalRoot.appendChild(backdrop);
     document.body.classList.add('modal-lock');
+    close.focus();
     return scroll;
   }
 
@@ -633,15 +621,14 @@
     host.innerHTML = '';
     const wrap = el('div', { class: 'modal-notice' });
     if (!detail) wrap.appendChild(el('div', { class: 'modal-spinner' }));
-    wrap.appendChild(el('p', { style: "margin:0;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#F5F5F7" }, esc(title)));
-    if (detail) wrap.appendChild(el('p', { style: 'margin:0;max-width:46ch;font-size:13.5px;line-height:1.7;color:#9CA3AF' }, esc(detail)));
+    wrap.appendChild(el('p', { style: "margin:0;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#F4F3F7" }, esc(title)));
+    if (detail) wrap.appendChild(el('p', { style: 'margin:0;max-width:46ch;font-size:13.5px;line-height:1.7;color:#A7A3B8' }, esc(detail)));
     host.appendChild(wrap);
   }
 
   function openImage(title, src, credential) {
     const host = buildModal(title, credential, src, 'Open full image ↗');
-    const img = el('img', { src: src, alt: esc(title) + ' certificate' });
-    host.appendChild(img);
+    host.appendChild(el('img', { src: src, alt: esc(title) + ' certificate' }));
   }
 
   function openPdf(title, src) {
@@ -664,6 +651,8 @@
 
   async function renderPdf(host, src) {
     const avail = host.clientWidth - 36;
+    // Width is measured once the panel has settled; retry on the next frame
+    // rather than rasterising at a mid-animation width.
     if (avail < 80) { requestAnimationFrame(() => renderPdf(host, src)); return; }
 
     const token = ++pdfToken;
@@ -715,36 +704,21 @@
   /* =====================================================================
      INIT
      ===================================================================== */
-  function reveal() {
-    if (preloader) preloader.classList.add('hidden');
-    document.body.classList.remove('loading-state');
-  }
+  function init() {
+    document.body.classList.add('js');
 
-  function start() {
-    resizeCanvas();
-    setupInteractions();
     renderProjects();
     renderCertificates();
     renderContacts();
-    setupReveals();
-    layoutAboutCards();
-    window.addEventListener('resize', resizeCanvas, { passive: true });
-    window.addEventListener('resize', layoutAboutCards, { passive: true });
+    setupNav();
 
-    preloadDeviceFrames(currentDevice, () => setTimeout(reveal, 200));
+    // A hero portrait that fails to load should leave the layout clean
+    // rather than showing a broken-image glyph over the 3D.
+    const portrait = document.getElementById('hero-portrait');
+    if (portrait) portrait.addEventListener('error', () => { portrait.style.display = 'none'; });
 
-    // Safety net: never trap the visitor behind the preloader.
-    setTimeout(reveal, 8000);
-
-    requestAnimationFrame(tick);
-  }
-
-  function init() {
-    // Probe a real frame to choose the format — AVIF where supported, else WebP.
-    const probe = new Image();
-    probe.onload = () => { frameExt = 'avif'; start(); };
-    probe.onerror = () => { frameExt = 'webp'; start(); };
-    probe.src = 'frames/' + currentDevice + '/frame_0001.avif';
+    setupScroll();
+    initHero3D();
   }
 
   if (document.readyState === 'loading') {
@@ -752,5 +726,4 @@
   } else {
     init();
   }
-
 })();
