@@ -624,44 +624,131 @@ a { color: inherit; text-decoration: none; }
 
 /* ------------------------- Certifications ------------------------------- */
 
-.cert-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: clamp(15px, 1.8vw, 22px);
-}
-
-.cert {
+/* Certificates: a vertical list of rows that spring open to reveal the
+   certificate itself. Heights are driven from JS (see the spring in app.js),
+   so no height transition is declared here. */
+.cert-list {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.cert-row {
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--bg-elev);
-  overflow: hidden;
+  transition: opacity 260ms var(--ease), border-color 260ms var(--ease);
+}
+.cert-row.is-open { border-color: var(--accent-line); }
+/* Non-hovered rows recede while one is open. */
+.cert-row.is-dim { opacity: 0.38; }
+
+/* The certificate image. contain, not cover: these are documents, and
+   cropping them cuts off the part that matters. */
+.cert-shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  opacity: 0;
+  transform: scale(1.06);
+  background: #0B0910;
+  pointer-events: none;
+}
+.cert-row.is-open .cert-shot { pointer-events: auto; cursor: zoom-in; }
+
+/* Keeps the header legible once the certificate is behind it. */
+.cert-scrim {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(8, 7, 12, 0.94) 0, rgba(8, 7, 12, 0.72) 64px, rgba(8, 7, 12, 0.28) 140px, rgba(8, 7, 12, 0.55) 100%);
+}
+
+.cert-bar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: clamp(16px, 2vw, 22px);
+}
+
+.cert-head {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  min-height: 68px;
+  padding: 11px 0 11px clamp(16px, 2vw, 22px);
   text-align: left;
-  padding: 0;
   font: inherit;
   color: inherit;
+  background: none;
+  border: 0;
   cursor: pointer;
-  transition: transform var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
 }
-.cert:hover { transform: translateY(-4px); border-color: var(--accent-line); }
+.cert-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; border-radius: 14px; }
 
-.cert-media {
-  aspect-ratio: 16 / 11;
-  overflow: hidden;
-  background: #0B0910;
-}
-.cert-media img { width: 100%; height: 100%; object-fit: cover; }
+.cert-meta { flex: 1; min-width: 0; }
 
-.cert-body { padding: 17px 18px 19px; }
 .cert-title {
-  margin: 0 0 6px;
+  margin: 0 0 3px;
   font-family: var(--display);
-  font-size: 15px;
+  font-size: clamp(14.5px, 1.5vw, 16.5px);
   font-weight: 600;
   line-height: 1.32;
+  color: var(--text);
 }
 .cert-issuer { margin: 0; font-size: 13px; color: var(--text-mute); }
+
+.cert-link {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  transition: color var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease),
+              background-color var(--t-fast) var(--ease),
+              gap var(--t-fast) var(--ease);
+}
+.cert-link:hover,
+.cert-link:focus-visible {
+  gap: 10px;
+  color: #DDD3FF;
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+/* Narrow screens: the link pill leaves too little room beside a long
+   certificate title, so it drops below the text instead of squeezing it
+   into four wrapped lines. Rows are taller here than the 68px desktop
+   collapsed height, which is what the titles need to stay readable. */
+@media (max-width: 560px) {
+  .cert-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 13px 16px;
+  }
+  .cert-head { width: 100%; min-height: 0; padding: 0; }
+  .cert-link { padding: 7px 13px; font-size: 12.5px; }
+}
 
 /* ---------------------------- Contact ----------------------------------- */
 
@@ -913,7 +1000,6 @@ body.js .reveal.is-in {
   .about-col:last-child { grid-column: 1 / -1; }
 
   .split { grid-template-columns: 1fr; }
-  .cert-grid { grid-template-columns: repeat(2, 1fr); }
   .footer-grid { grid-template-columns: 1fr 1fr; }
 
 }
@@ -972,7 +1058,6 @@ body.js .reveal.is-in {
   .about-body { grid-template-columns: 1fr; }
   .about-col:last-child { grid-column: auto; }
   .proj-grid { grid-template-columns: 1fr; }
-  .cert-grid { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr; }
   .footer-base { justify-content: flex-start; }
 

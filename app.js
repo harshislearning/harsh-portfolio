@@ -162,27 +162,201 @@
     });
   }
 
-  function renderCertificates() {
-    const grid = document.getElementById('certs-grid');
-    if (!grid) return;
+  /* =====================================================================
+     CERTIFICATES — hover-expand rows
 
-    CONFIG.certificates.forEach(c => {
-      const card = el('button', { class: 'cert reveal', type: 'button' });
+     Each row's openness is a spring-driven 0..1 value; height, image scale
+     and the scrim all read from it. Spring constants are integrated
+     directly rather than eased, so the motion settles physically.
+     ===================================================================== */
+  const SPRING = { stiffness: 280, damping: 32, mass: 0.9 };
+  const activeSprings = new Set();
+  let springRaf = 0, springLast = 0;
 
-      const media = el('div', { class: 'cert-media' });
-      media.appendChild(el('img', {
-        src: c.thumb, alt: esc(c.title) + ' certificate', loading: 'lazy', decoding: 'async'
-      }));
-      card.appendChild(media);
+  function springFrame(now) {
+    const dt = Math.min((now - springLast) / 1000, 0.05);
+    springLast = now;
 
-      const body = el('div', { class: 'cert-body' });
-      body.appendChild(el('h3', { class: 'cert-title' }, esc(c.title)));
-      body.appendChild(el('p', { class: 'cert-issuer' }, esc(c.issuer)));
-      card.appendChild(body);
+    // Fixed sub-steps keep the integration stable regardless of frame rate.
+    const h = 1 / 240;
+    const steps = Math.min(24, Math.max(1, Math.round(dt / h)));
 
-      card.addEventListener('click', () => openImage(c.title, c.thumb, c.credential));
-      grid.appendChild(card);
+    activeSprings.forEach(s => {
+      for (let i = 0; i < steps; i++) {
+        const accel = (-SPRING.stiffness * (s.value - s.target) - SPRING.damping * s.velocity) / SPRING.mass;
+        s.velocity += accel * h;
+        s.value += s.velocity * h;
+      }
+      if (Math.abs(s.value - s.target) < 0.0015 && Math.abs(s.velocity) < 0.0015) {
+        s.value = s.target;
+        s.velocity = 0;
+        activeSprings.delete(s);
+      }
+      s.render(s.value);
     });
+
+    springRaf = activeSprings.size ? requestAnimationFrame(springFrame) : 0;
+  }
+
+  function springTo(state, target) {
+    state.target = target;
+    if (reduceMotion) {
+      state.value = target;
+      state.velocity = 0;
+      activeSprings.delete(state);
+      state.render(target);
+      return;
+    }
+    activeSprings.add(state);
+    if (!springRaf) {
+      springLast = performance.now();
+      springRaf = requestAnimationFrame(springFrame);
+    }
+  }
+
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+  function renderCertificates() {
+    const list = document.getElementById('certs-list');
+    if (!list) return;
+
+    const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const rows = [];
+    let activeRow = null;
+
+    CONFIG.certificates.forEach((c, i) => {
+      const row = el('article', { class: 'cert-row' });
+      const panelId = 'cert-panel-' + i;
+
+      const shot = el('img', {
+        class: 'cert-shot', src: c.thumb, id: panelId,
+        alt: esc(c.title) + ' certificate', loading: 'lazy', decoding: 'async'
+      });
+      const scrim = el('div', { class: 'cert-scrim' });
+
+      const head = el('button', {
+        class: 'cert-head', type: 'button',
+        'aria-expanded': 'false', 'aria-controls': panelId
+      });
+      const meta = el('div', { class: 'cert-meta' });
+      meta.appendChild(el('h3', { class: 'cert-title' }, esc(c.title)));
+      meta.appendChild(el('p', { class: 'cert-issuer' }, esc(c.issuer)));
+      head.appendChild(meta);
+
+      const link = el('a', {
+        class: 'cert-link', href: c.credential,
+        target: '_blank', rel: 'noopener noreferrer'
+      }, 'View Certificate <span aria-hidden="true">&rarr;</span>');
+      // The link lives inside the row but must never toggle it.
+      link.addEventListener('click', e => e.stopPropagation());
+
+      // head and link are siblings in a flex bar: an anchor cannot be nested
+      // inside a button.
+      const bar = el('div', { class: 'cert-bar' });
+      bar.appendChild(head);
+      bar.appendChild(link);
+
+      row.appendChild(shot);
+      row.appendChild(scrim);
+      row.appendChild(bar);
+
+      const state = { value: 0, velocity: 0, target: 0, render: null };
+      const size = { collapsed: 68, expanded: 312 };
+
+      state.render = (p) => {
+        row.style.height = (size.collapsed + (size.expanded - size.collapsed) * p) + 'px';
+        // Lag the reveal behind the height so the image arrives after the row
+        // has started opening (the spec's ~0.12s delay).
+        const r = reduceMotion ? p : clamp01((p - 0.20) / 0.80);
+        shot.style.opacity = r;
+        shot.style.transform = reduceMotion
+          ? 'none'
+          : 'translateX(' + (-8 * (1 - r)).toFixed(2) + 'px) scale(' + (1.06 - 0.06 * r).toFixed(4) + ')';
+        scrim.style.opacity = r;
+      };
+
+      const entry = { row, head, bar, state, size, shot, cert: c };
+      rows.push(entry);
+
+      shot.addEventListener('click', () => {
+        if (state.target > 0.5) openImage(c.title, c.thumb, c.credential);
+      });
+
+      head.addEventListener('click', () => {
+        if (activeRow === entry) collapseAll();
+        else expand(entry);
+      });
+
+      if (hoverCapable) {
+        row.addEventListener('pointerenter', (e) => {
+          if (e.pointerType === 'touch') return;
+          expand(entry);
+        });
+      }
+
+      // Keyboard: focusing the row reveals it, leaving it collapses.
+      head.addEventListener('focus', () => expand(entry));
+      row.addEventListener('focusout', (e) => {
+        if (!row.contains(e.relatedTarget)) {
+          if (activeRow === entry) collapseAll();
+        }
+      });
+
+      list.appendChild(row);
+    });
+
+    function measure() {
+      const w = window.innerWidth;
+      const target = w >= 1024 ? 312 : w >= 768 ? 286 : 248;
+      rows.forEach(e => {
+        e.size.collapsed = Math.max(68, e.bar.offsetHeight);
+        e.size.expanded = Math.max(target, e.size.collapsed + 140);
+        e.state.render(e.state.value);
+      });
+    }
+
+    function expand(entry) {
+      if (activeRow === entry) return;
+      activeRow = entry;
+      rows.forEach(e => {
+        const open = e === entry;
+        e.row.classList.toggle('is-open', open);
+        e.row.classList.toggle('is-dim', !open);
+        e.head.setAttribute('aria-expanded', open ? 'true' : 'false');
+        springTo(e.state, open ? 1 : 0);
+      });
+    }
+
+    function collapseAll() {
+      activeRow = null;
+      rows.forEach(e => {
+        e.row.classList.remove('is-open', 'is-dim');
+        e.head.setAttribute('aria-expanded', 'false');
+        springTo(e.state, 0);
+      });
+    }
+
+    if (hoverCapable) {
+      list.addEventListener('pointerleave', (e) => {
+        if (e.pointerType === 'touch') return;
+        // Don't close a row a keyboard user is focused on just because the
+        // mouse happens to be resting elsewhere.
+        if (list.contains(document.activeElement)) return;
+        collapseAll();
+      });
+    }
+
+    // Heights depend on how the head wraps, so re-measure when it can change.
+    measure();
+    if (window.ResizeObserver) {
+      let t = 0;
+      const ro = new ResizeObserver(() => {
+        clearTimeout(t);
+        t = setTimeout(measure, 120);
+      });
+      ro.observe(list);
+    }
+    window.addEventListener('load', measure);
   }
 
   function renderContacts() {
