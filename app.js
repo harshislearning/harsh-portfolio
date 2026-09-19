@@ -902,22 +902,32 @@
     let open = false;
     let decked = false;
     let tuning = deckTuning();   // clamped in build()
+    let hovered = -1;            // card the cursor is over: comes forward
+    let expanded = -1;           // card opened by a click
 
     function paintCards(t) {
       const mid = (cards.length - 1) / 2;
       cards.forEach((card, i) => {
         const d = i - mid;
         const a = Math.abs(d);
-        card.style.zIndex = String(Math.round(50 - a * 10));
+        // A card the cursor is on, or one that has been opened, rises above
+        // whatever is stacked over it.
+        const front = i === expanded ? 120 : i === hovered ? 100 : 0;
+        card.style.zIndex = String(front || Math.round(50 - a * 10));
+
+        const lift = i === hovered || i === expanded
+          ? ' translateZ(' + (i === expanded ? 90 : 62) + 'px)'
+          : '';
+
         card.style.transform = open
           ? 'translateX(' + (d * t.spread).toFixed(1) + 'px)' +
-            ' translateZ(' + (-a * 18).toFixed(1) + 'px)' +
+            ' translateZ(' + (-a * 18).toFixed(1) + 'px)' + lift +
             ' rotateY(' + (-d * t.yaw).toFixed(2) + 'deg)' +
-            ' rotateZ(' + (d * t.angle).toFixed(2) + 'deg)' +
+            ' rotateZ(' + ((i === hovered || i === expanded ? 0 : d * t.angle)).toFixed(2) + 'deg)' +
             ' scale(' + (1 - a * 0.018).toFixed(4) + ')'
           : 'translateX(' + (d * 11).toFixed(1) + 'px)' +
-            ' translateZ(' + (-a * 10).toFixed(1) + 'px)' +
-            ' rotateZ(' + (d * 1.1).toFixed(2) + 'deg)' +
+            ' translateZ(' + (-a * 10).toFixed(1) + 'px)' + lift +
+            ' rotateZ(' + ((i === hovered || i === expanded ? 0 : d * 1.1)).toFixed(2) + 'deg)' +
             ' scale(' + (1 - a * 0.012).toFixed(4) + ')';
       });
     }
@@ -926,28 +936,69 @@
       grid.classList.remove('is-deck');
       grid.style.removeProperty('--deck-h');
       grid.style.removeProperty('--deck-card-w');
+      grid.style.removeProperty('--deck-card-h');
+      grid.style.removeProperty('--deck-card-h-full');
       cards.forEach(c => {
         c.style.transform = '';
         c.style.zIndex = '';
       });
       decked = false;
       open = false;
+      hovered = -1;
+    }
+
+    function setExpanded(i) {
+      expanded = i;
+      cards.forEach((c, n) => c.classList.toggle('is-expanded', n === i));
+      // Equal rows are right for a grid of compact cards, but an opened card
+      // must be free to grow without dragging every other row with it.
+      grid.classList.toggle('has-expanded', i >= 0);
+      if (i >= 0) open = true;   // fan out so the opened card is in the clear
+      applyDeckHeight();
+      if (decked) paintCards(tuning);
+    }
+
+    // Both card heights, measured in grid flow at the deck's card width so
+    // they are the real wrapped heights rather than the three-column ones.
+    function measureHeights(cardW) {
+      grid.style.gridTemplateColumns = 'repeat(auto-fit, ' + cardW + 'px)';
+      grid.style.justifyContent = 'center';
+
+      const wasExpanded = cards.map(c => c.classList.contains('is-expanded'));
+
+      cards.forEach(c => c.classList.remove('is-expanded'));
+      // eslint-disable-next-line no-unused-expressions
+      grid.offsetHeight;
+      let compact = 0;
+      cards.forEach(c => { compact = Math.max(compact, c.offsetHeight); });
+
+      cards.forEach(c => c.classList.add('is-expanded'));
+      // eslint-disable-next-line no-unused-expressions
+      grid.offsetHeight;
+      let full = 0;
+      cards.forEach(c => { full = Math.max(full, c.offsetHeight); });
+
+      cards.forEach((c, i) => c.classList.toggle('is-expanded', wasExpanded[i]));
+      grid.style.removeProperty('grid-template-columns');
+      grid.style.removeProperty('justify-content');
+
+      return { compact: compact, full: Math.max(full, compact) };
+    }
+
+    let heights = { compact: 0, full: 0 };
+
+    function applyDeckHeight() {
+      if (!decked) return;
+      const h = (expanded >= 0 ? heights.full : heights.compact) + 46;
+      grid.style.setProperty('--deck-h', Math.ceil(h) + 'px');
     }
 
     function build() {
       const t = deckTuning();
 
-      // Measure in grid flow at the deck's card width, so the height is the
-      // real wrapped height rather than the three-column one.
       teardown();
-      grid.style.gridTemplateColumns = 'repeat(auto-fit, ' + t.card + 'px)';
-      grid.style.justifyContent = 'center';
-      // eslint-disable-next-line no-unused-expressions
-      grid.offsetHeight;
-      let tallest = 0;
-      cards.forEach(c => { tallest = Math.max(tallest, c.offsetHeight); });
-      grid.style.removeProperty('grid-template-columns');
-      grid.style.removeProperty('justify-content');
+      heights = measureHeights(t.card);
+      const tallest = heights.compact;
 
       if (!tallest) return;
 
@@ -968,9 +1019,11 @@
       };
 
       grid.style.setProperty('--deck-card-w', t.card + 'px');
-      grid.style.setProperty('--deck-h', Math.ceil(tallest + 46) + 'px');
+      grid.style.setProperty('--deck-card-h', Math.ceil(heights.compact) + 'px');
+      grid.style.setProperty('--deck-card-h-full', Math.ceil(heights.full) + 'px');
       grid.classList.add('is-deck');
       decked = true;
+      applyDeckHeight();
       paintCards(tuning);
     }
 
@@ -993,15 +1046,40 @@
       });
     }
 
-    // Touch: tap the deck to fan, tap outside to collapse. Links inside the
-    // cards keep working because this never preventDefaults.
+    cards.forEach((card, i) => {
+      // Cursor over a card brings it forward out of the stack.
+      card.addEventListener('pointerenter', (e) => {
+        if (e.pointerType === 'touch') return;
+        hovered = i;
+        if (decked) paintCards(tuning);
+      });
+      card.addEventListener('pointerleave', (e) => {
+        if (e.pointerType === 'touch') return;
+        if (hovered !== i) return;
+        hovered = -1;
+        if (decked) paintCards(tuning);
+      });
+
+      // Click opens the card; clicking it again closes it. Works the same on
+      // touch, where there is no hover to rely on.
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('a')) return;   // the GitHub link still wins
+        e.stopPropagation();
+        setExpanded(expanded === i ? -1 : i);
+      });
+    });
+
+    // Tap empty deck space to fan. Links keep working: this never
+    // preventDefaults.
     grid.addEventListener('click', (e) => {
       if (!decked) return;
       if (e.target.closest('a')) return;
       setOpen(!open);
     });
     document.addEventListener('click', (e) => {
-      if (decked && open && !grid.contains(e.target)) setOpen(false);
+      if (grid.contains(e.target)) return;
+      if (expanded >= 0) setExpanded(-1);
+      if (decked && open) setOpen(false);
     });
 
     // Keyboard: tabbing into any card opens the fan so the focused card is
