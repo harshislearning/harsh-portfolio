@@ -55,13 +55,13 @@
 
     <div class="hero-inner">
       <div class="hero-copy">
-        <!-- "Hi, it's" stays put; only the two states below slide. -->
-        <span class="hero-greet">Hi, it's</span>
-
         <!-- Fixed-height viewport: both states are absolutely positioned
-             inside it, so swapping them cannot move the buttons. -->
+             inside it, so swapping them cannot move the buttons.
+             "Hi, it's" belongs to state A, so it slides away with it and is
+             absent once the second state has arrived. -->
         <div class="hero-swap" id="hero-swap">
           <div class="hero-state" data-state="a">
+            <span class="hero-greet">Hi, it's</span>
             <h1 class="hero-title">Harsh <span class="accent">Patil</span></h1>
             <p class="hero-roles">
               Data Science <span>/</span> Machine Learning <span>/</span> Generative AI

@@ -790,6 +790,24 @@
     const bTitle = b.querySelector('.hero-title');
     const aTitle = a.querySelector('.hero-title');
 
+    const figure = document.querySelector('.hero-figure');
+
+    // How wide the second state's title may run. The text column is the
+    // floor, but on the side-by-side layout the portrait is centred in a
+    // wider column, so there is unused room between the two. Using it lets
+    // the longer title render larger without ever reaching the portrait.
+    function availableWidth() {
+      let avail = swap.clientWidth;
+      if (!figure) return avail;
+      const s = swap.getBoundingClientRect();
+      const f = figure.getBoundingClientRect();
+      const sideBySide = f.top < s.bottom && f.bottom > s.top;
+      if (sideBySide && f.left > s.left) {
+        avail = Math.max(avail, Math.floor(f.left - s.left - 28));
+      }
+      return avail;
+    }
+
     function fitTitle() {
       // "AI Research Intern" is much longer than "Harsh Patil". At the same
       // size it would wrap onto a second line and make the box taller, which
@@ -797,8 +815,12 @@
       // hero keeps its exact dimensions.
       bTitle.style.fontSize = '';
       bTitle.style.whiteSpace = 'nowrap';
+      swap.style.removeProperty('width');
+
       const base = parseFloat(getComputedStyle(aTitle).fontSize);
-      const avail = swap.clientWidth;
+      const avail = availableWidth();
+      if (avail > swap.clientWidth) swap.style.width = avail + 'px';
+
       const natural = bTitle.scrollWidth;
       if (natural > avail && natural > 0) {
         bTitle.style.fontSize = Math.floor(base * (avail / natural) * 100) / 100 + 'px';
@@ -828,8 +850,11 @@
       const e = q * q * (3 - 2 * q);
       a.style.transform = 'translateY(' + (-e * 100).toFixed(2) + '%)';
       b.style.transform = 'translateY(' + ((1 - e) * 100).toFixed(2) + '%)';
-      a.style.opacity = (1 - e * 0.85).toFixed(3);
-      b.style.opacity = (0.15 + e * 0.85).toFixed(3);
+      // Both reach a clean 0 at their own end: no ghost of the incoming text
+      // sitting under the hero at rest, and none of the outgoing text left
+      // behind once the swap has finished.
+      a.style.opacity = (1 - e).toFixed(3);
+      b.style.opacity = e.toFixed(3);
     }
 
     measure();

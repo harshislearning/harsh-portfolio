@@ -365,6 +365,15 @@ a { color: inherit; text-decoration: none; }
   will-change: transform, opacity;
 }
 
+/* State B carries no greeting, so it is centred in the box state A sizes
+   rather than sitting top-aligned with a gap where "Hi, it's" used to be. */
+.hero-state[data-state="b"] {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+}
+
 /* Before JS measures, state A holds the box open so the hero renders at its
    normal height even if the script never runs. */
 .hero-swap:not(.is-ready) .hero-state[data-state="a"] { position: relative; }
