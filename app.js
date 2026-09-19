@@ -744,6 +744,115 @@
   }
 
   /* =====================================================================
+     ABOUT — cursor image trail
+
+     Decorative only: a pointer-events:none layer behind the About content
+     that drops a logo every so many pixels of cursor travel. Older images
+     shrink and fade; the layer is never built on touch devices or under
+     reduced motion.
+     ===================================================================== */
+  const TRAIL_IMAGES = [
+    'uploads/trail/hackerrank.webp',
+    'uploads/trail/github.webp',
+    'uploads/trail/claude.webp',
+    'uploads/trail/vscode.webp',
+    'uploads/trail/sql.webp',
+    'uploads/trail/chatgpt.webp',
+    'uploads/trail/python.webp'
+  ];
+  const TRAIL_LENGTH = 7;
+  const TRAIL_SPAWN_DISTANCE = 78;   // px of cursor travel between spawns
+  const TRAIL_ROTATION = 17;         // +/- degrees
+  const TRAIL_FADE_MS = 560;
+
+  function setupAboutTrail() {
+    const about = document.getElementById('about');
+    if (!about || reduceMotion) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    const layer = el('div', { class: 'trail-layer', 'aria-hidden': 'true' });
+    about.insertBefore(layer, about.firstChild);
+
+    // Warm the cache so the first few spawns are not blank.
+    TRAIL_IMAGES.forEach(src => { const i = new Image(); i.src = src; });
+
+    const items = [];
+    let next = 0;
+    let lastX = null, lastY = null;
+    let pending = null, raf = 0;
+
+    function restyle() {
+      const n = items.length;
+      items.forEach((it, i) => {
+        // i counts from oldest; age 0 is the newest image.
+        const age = (n - 1 - i) / Math.max(1, TRAIL_LENGTH - 1);
+        const scale = 1 - age * 0.34;
+        // Peak 0.72, not 1: these sit behind body copy and should read as
+        // decoration rather than as stickers laid over the text.
+        it.el.style.opacity = (0.72 - age * 0.55).toFixed(3);
+        it.el.style.transform =
+          'translate(-50%,-50%) rotate(' + it.rot.toFixed(1) + 'deg) scale(' + scale.toFixed(3) + ')';
+      });
+    }
+
+    function retire(it) {
+      it.el.style.opacity = '0';
+      it.el.style.transform =
+        'translate(-50%,-50%) rotate(' + it.rot.toFixed(1) + 'deg) scale(0.62)';
+      setTimeout(() => { if (it.el.parentNode) it.el.parentNode.removeChild(it.el); }, TRAIL_FADE_MS);
+    }
+
+    function spawn(x, y) {
+      const img = el('img', {
+        class: 'trail-img',
+        src: TRAIL_IMAGES[next % TRAIL_IMAGES.length],
+        alt: '', role: 'presentation', draggable: 'false', decoding: 'async'
+      });
+      next++;
+
+      const rot = (Math.random() * 2 - 1) * TRAIL_ROTATION;
+      img.style.left = x + 'px';
+      img.style.top = y + 'px';
+      img.style.transform = 'translate(-50%,-50%) rotate(' + rot.toFixed(1) + 'deg) scale(0.8)';
+      layer.appendChild(img);
+
+      const it = { el: img, rot: rot };
+      items.push(it);
+      while (items.length > TRAIL_LENGTH) retire(items.shift());
+
+      // Next frame so the browser has a start value to transition from.
+      requestAnimationFrame(restyle);
+    }
+
+    function flush() {
+      raf = 0;
+      if (!pending) return;
+      const { x, y } = pending;
+      pending = null;
+
+      if (lastX === null) { lastX = x; lastY = y; spawn(x, y); return; }
+      const dx = x - lastX, dy = y - lastY;
+      if (Math.sqrt(dx * dx + dy * dy) < TRAIL_SPAWN_DISTANCE) return;
+      lastX = x; lastY = y;
+      spawn(x, y);
+    }
+
+    // Coalesced to one spawn check per frame, however fast the pointer moves.
+    about.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const r = layer.getBoundingClientRect();
+      pending = { x: e.clientX - r.left, y: e.clientY - r.top };
+      if (!raf) raf = requestAnimationFrame(flush);
+    }, { passive: true });
+
+    about.addEventListener('pointerleave', () => {
+      lastX = lastY = null;
+      pending = null;
+      while (items.length) retire(items.shift());
+    });
+  }
+
+  /* =====================================================================
      LIGHTBOX — PDF.js for the resume, plain image for certificates
      ===================================================================== */
   let pdfLibPromise = null;
@@ -896,6 +1005,7 @@
     setupNav();
 
     setupScroll();
+    setupAboutTrail();
     initHero3D();
   }
 

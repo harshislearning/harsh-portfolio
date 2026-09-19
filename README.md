@@ -25,6 +25,11 @@ project means adding one array entry.
 in the Contact orbit. It wants a square crop, framed fairly tight, since both
 places mask it to a circle. Replacing that one file updates both.
 
+`uploads/trail/` holds the seven logos for the About cursor trail, all
+normalised to 240x240 WebP with the logo contained and padded so none of them
+touch the rounded corners. To swap one, keep that shape and update the
+`TRAIL_IMAGES` list in `app.js`.
+
 ## How the page works
 
 The hero runs a Three.js point cloud behind the content. It is lazy-loaded from
