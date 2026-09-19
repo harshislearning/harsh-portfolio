@@ -943,34 +943,48 @@
     let open = false;
     let decked = false;
     let tuning = deckTuning();   // clamped in build()
-    let hovered = -1;            // card the cursor is over: comes forward
     let expanded = -1;           // card opened by a click
+    // Single source of truth for the carousel. Every card's position is its
+    // offset from this, so pointing at a card slides the whole arrangement
+    // rather than reordering or rebuilding it.
+    let active = Math.round((cards.length - 1) / 2);
 
     function paintCards(t) {
-      const mid = (cards.length - 1) / 2;
       cards.forEach((card, i) => {
-        const d = i - mid;
+        const d = i - active;
         const a = Math.abs(d);
-        // A card the cursor is on, or one that has been opened, rises above
-        // whatever is stacked over it.
-        const front = i === expanded ? 120 : i === hovered ? 100 : 0;
-        card.style.zIndex = String(front || Math.round(50 - a * 10));
+        const isActive = i === active;
 
-        const lift = i === hovered || i === expanded
-          ? ' translateZ(' + (i === expanded ? 90 : 62) + 'px)'
-          : '';
+        card.style.zIndex = String(
+          i === expanded ? 120 : isActive ? 100 : Math.round(50 - a * 10)
+        );
 
+        // Far cards would otherwise over-rotate now that the offset can
+        // reach four steps instead of two.
+        const rotSteps = Math.max(-2.2, Math.min(2.2, d));
+
+        // No positive translateZ on the active card. Pushing it toward the
+        // viewer projects it away from the container's perspective origin,
+        // which slides it off the centre it is supposed to land on. Being
+        // upright, full scale and top of the z stack already reads as front.
         card.style.transform = open
           ? 'translateX(' + (d * t.spread).toFixed(1) + 'px)' +
-            ' translateZ(' + (-a * 18).toFixed(1) + 'px)' + lift +
+            ' translateZ(' + (-a * 18).toFixed(1) + 'px)' +
             ' rotateY(' + (-d * t.yaw).toFixed(2) + 'deg)' +
-            ' rotateZ(' + ((i === hovered || i === expanded ? 0 : d * t.angle)).toFixed(2) + 'deg)' +
+            ' rotateZ(' + (isActive || i === expanded ? 0 : rotSteps * t.angle).toFixed(2) + 'deg)' +
             ' scale(' + (1 - a * 0.018).toFixed(4) + ')'
           : 'translateX(' + (d * 11).toFixed(1) + 'px)' +
-            ' translateZ(' + (-a * 10).toFixed(1) + 'px)' + lift +
-            ' rotateZ(' + ((i === hovered || i === expanded ? 0 : d * 1.1)).toFixed(2) + 'deg)' +
+            ' translateZ(' + (-a * 10).toFixed(1) + 'px)' +
+            ' rotateZ(' + (isActive || i === expanded ? 0 : rotSteps * 1.1).toFixed(2) + 'deg)' +
             ' scale(' + (1 - a * 0.012).toFixed(4) + ')';
       });
+    }
+
+    function setActive(i) {
+      // Hover is ignored while a card is open, per the expanded-state rule.
+      if (expanded >= 0 || active === i) return;
+      active = i;
+      if (decked) paintCards(tuning);
     }
 
     function teardown() {
@@ -985,7 +999,6 @@
       });
       decked = false;
       open = false;
-      hovered = -1;
     }
 
     function setExpanded(i) {
@@ -1047,11 +1060,14 @@
       // reserve a little vertical slack to keep it off the neighbours.
       // Clamp the spread to what actually fits. A rotated card's corners
       // reach past its centre offset by roughly height*sin(angle), so the
-      // fan is always wider than the spread alone. Deriving the limit here
-      // beats hand-tuning numbers that break at the next odd width.
+      // fan is always wider than the spread alone.
+      //
+      // Divided by 8, not 4: offsets are measured from the active card, so
+      // when an end card is centred the other four sit on one side and the
+      // furthest is four steps out rather than two.
       const avail = grid.clientWidth;
       const bleed = tallest * Math.sin(t.angle * Math.PI / 180);
-      const maxSpread = (avail - t.card - 2 * bleed) / 4;
+      const maxSpread = (avail - t.card - 2 * bleed) / 8;
       tuning = {
         card: t.card,
         angle: t.angle,
@@ -1088,25 +1104,24 @@
     }
 
     cards.forEach((card, i) => {
-      // Cursor over a card brings it forward out of the stack.
+      // Hover brings a card to the centre. No pointerleave reset: the last
+      // card pointed at stays active, so the carousel never snaps back.
       card.addEventListener('pointerenter', (e) => {
         if (e.pointerType === 'touch') return;
-        hovered = i;
-        if (decked) paintCards(tuning);
-      });
-      card.addEventListener('pointerleave', (e) => {
-        if (e.pointerType === 'touch') return;
-        if (hovered !== i) return;
-        hovered = -1;
-        if (decked) paintCards(tuning);
+        setActive(i);
       });
 
-      // Click opens the card; clicking it again closes it. Works the same on
-      // touch, where there is no hover to rely on.
       card.addEventListener('click', (e) => {
         if (e.target.closest('a')) return;   // the GitHub link still wins
         e.stopPropagation();
-        setExpanded(expanded === i ? -1 : i);
+        if (expanded === i) { setExpanded(-1); return; }
+        // Clicking the centred card opens it. Clicking any other card
+        // centres it first, which is also how touch reaches the centre
+        // without a hover to do it, and the card visibly moves so the tap
+        // reads as doing something. In grid mode there is no centre to move
+        // to, so a tap opens the card straight away.
+        if (!decked || active === i) setExpanded(i);
+        else setActive(i);
       });
     });
 
