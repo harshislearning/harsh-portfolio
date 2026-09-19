@@ -766,6 +766,47 @@
   }
 
   /* =====================================================================
+     PROJECTS — pixel liquid background
+
+     GPU fluid sim behind the project cards. Loaded only when the section is
+     near, skipped entirely on touch, small screens and reduced motion: it is
+     a second WebGL context on a page that already runs one for the hero.
+     ===================================================================== */
+  function setupProjectFluid() {
+    const section = document.getElementById('projects');
+    if (!section || reduceMotion) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    if (window.innerWidth < 900) return;
+    if (!webglAvailable()) return;
+
+    let started = false;
+    const io = new IntersectionObserver(entries => {
+      if (!entries[0].isIntersecting || started) return;
+      started = true;
+      io.disconnect();
+      import('./fluid-bg.js')
+        .then(m => m.createFluidBackground(section, {
+          // The site's own violet ramp rather than the component's pink
+          // default, so it reads as this page's background.
+          palette: ['#08070C', '#140E2B', '#33207A', '#6D42E0', '#A78BFA'],
+          pixelSize: 16,
+          resolution: 0.32,
+          mouseForce: 7,
+          cursorSize: 120,
+          // Restrained on purpose: this sits behind the section heading and
+          // the cards, so it reads as a tint that follows the cursor rather
+          // than a field competing with the content.
+          intensity: 0.5,
+          dissipation: 0.955,
+          opacity: 0.34
+        }))
+        .catch(() => { /* CDN unreachable: the section keeps its flat bg */ });
+    }, { rootMargin: '200px 0px' });
+
+    io.observe(section);
+  }
+
+  /* =====================================================================
      HERO — scroll-driven text swap
 
      Two states share one fixed-height viewport. State A slides up and out
@@ -1373,6 +1414,7 @@
     setupHeroSwap();
     setupScroll();
     setupProjectDeck();
+    setupProjectFluid();
     setupCursorTrail();
     initHero3D();
   }

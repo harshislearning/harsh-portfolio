@@ -616,6 +616,10 @@ a { color: inherit; text-decoration: none; }
    to grow without stretching every other row to match. */
 .proj-grid.has-expanded { grid-auto-rows: auto; }
 
+/* The fluid canvas is prepended to the section; content stays above it. */
+.projects { overflow: hidden; }
+.projects > .wrap { position: relative; z-index: 1; }
+
 /* --- 3D deck mode -------------------------------------------------------
    JS adds .is-deck once it has measured the cards. Cards keep their own
    styling untouched; only position and transform change. The grid rules
