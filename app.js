@@ -744,12 +744,12 @@
   }
 
   /* =====================================================================
-     ABOUT — cursor image trail
+     CURSOR IMAGE TRAIL
 
-     Decorative only: a pointer-events:none layer behind the About content
-     that drops a logo every so many pixels of cursor travel. Older images
-     shrink and fade; the layer is never built on touch devices or under
-     reduced motion.
+     Decorative only: a pointer-events:none layer behind everything from
+     About through Education + Skills, dropping a logo every so many pixels
+     of cursor travel. Older images shrink and fade; the layer is never
+     built on touch devices or under reduced motion.
      ===================================================================== */
   const TRAIL_IMAGES = [
     'uploads/trail/hackerrank.webp',
@@ -765,13 +765,15 @@
   const TRAIL_ROTATION = 17;         // +/- degrees
   const TRAIL_FADE_MS = 560;
 
-  function setupAboutTrail() {
-    const about = document.getElementById('about');
-    if (!about || reduceMotion) return;
+  function setupCursorTrail() {
+    // The zone wraps About plus Education + Skills; the trail stops where it
+    // ends, before Projects.
+    const zone = document.getElementById('trail-zone');
+    if (!zone || reduceMotion) return;
     if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
     const layer = el('div', { class: 'trail-layer', 'aria-hidden': 'true' });
-    about.insertBefore(layer, about.firstChild);
+    zone.insertBefore(layer, zone.firstChild);
 
     // Warm the cache so the first few spawns are not blank.
     TRAIL_IMAGES.forEach(src => { const i = new Image(); i.src = src; });
@@ -838,14 +840,14 @@
     }
 
     // Coalesced to one spawn check per frame, however fast the pointer moves.
-    about.addEventListener('pointermove', (e) => {
+    zone.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
       const r = layer.getBoundingClientRect();
       pending = { x: e.clientX - r.left, y: e.clientY - r.top };
       if (!raf) raf = requestAnimationFrame(flush);
     }, { passive: true });
 
-    about.addEventListener('pointerleave', () => {
+    zone.addEventListener('pointerleave', () => {
       lastX = lastY = null;
       pending = null;
       while (items.length) retire(items.shift());
@@ -1005,7 +1007,7 @@
     setupNav();
 
     setupScroll();
-    setupAboutTrail();
+    setupCursorTrail();
     initHero3D();
   }
 
