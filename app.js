@@ -714,9 +714,15 @@
     setupNav();
 
     // A hero portrait that fails to load should leave the layout clean
-    // rather than showing a broken-image glyph over the 3D.
+    // rather than showing a broken-image glyph and its alt text over the 3D.
+    // The error event can fire before this deferred script runs, so check the
+    // already-settled case too.
     const portrait = document.getElementById('hero-portrait');
-    if (portrait) portrait.addEventListener('error', () => { portrait.style.display = 'none'; });
+    if (portrait) {
+      const hide = () => { portrait.style.display = 'none'; };
+      portrait.addEventListener('error', hide);
+      if (portrait.complete && portrait.naturalWidth === 0) hide();
+    }
 
     setupScroll();
     initHero3D();
