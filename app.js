@@ -498,17 +498,38 @@
       }
     });
 
-    // Hero scrub drives both the portrait parallax and the point-cloud
-    // dispersion, so the 3D reacts to scroll without its own listener.
     const orbit = document.getElementById('hero-orbit');
+
+    // The hero pins for a short distance and that distance is spent on the
+    // text swap: the first scroll is consumed by the animation, a further
+    // scroll releases the page. Native scroll drives it, so wheel, trackpad
+    // and touch all behave, and the page can never end up stuck.
+    if (heroSwap) {
+      ScrollTrigger.create({
+        trigger: '#home',
+        start: 'top top',
+        end: () => '+=' + Math.round(window.innerHeight * 0.85),
+        pin: true,
+        pinSpacing: true,
+        anticipatePin: 1,
+        scrub: true,
+        invalidateOnRefresh: true,
+        onUpdate: self => { heroSwap(self.progress); }
+      });
+    }
+
+    // Point-cloud dispersion and portrait parallax are driven by About
+    // rising into view, which is exactly the stretch after the pin releases.
+    // Keeping them off the pinned range is what lets the hero sit completely
+    // still while only the text moves.
     ScrollTrigger.create({
-      trigger: '#home',
-      start: 'top top',
-      end: 'bottom top',
+      trigger: '#about',
+      start: 'top bottom',
+      end: 'top top',
       scrub: true,
+      invalidateOnRefresh: true,
       onUpdate: self => {
         heroProgress = self.progress;
-        if (heroSwap) heroSwap(self.progress);
         if (orbit) {
           orbit.style.transform =
             'translate3d(0,' + (self.progress * 64).toFixed(2) + 'px,0) scale(' +
@@ -751,11 +772,11 @@
      while state B slides in from below, both driven by the hero's existing
      ScrollTrigger progress, so no extra scroll listener is added.
      ===================================================================== */
-  // Kept early on purpose: the hero copy scrolls out of view around 20% of
-  // the hero's height, so a swap that finished later would complete
-  // off-screen and never actually be seen.
-  const SWAP_FROM = 0.03;   // hero scroll progress where the swap starts
-  const SWAP_TO   = 0.15;   // ...and where it completes
+  // Progress here is the hero's PIN progress, not page scroll. The swap runs
+  // over the first stretch of the pin; the remainder is the settled state the
+  // hero holds before a further scroll releases it.
+  const SWAP_FROM = 0.06;
+  const SWAP_TO   = 0.62;
 
   let heroSwap = null;
 
