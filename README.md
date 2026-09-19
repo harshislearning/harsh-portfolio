@@ -21,15 +21,9 @@ project means adding one array entry.
 
 ## Images
 
-Two portraits, both in `uploads/`:
-
-| File | Used by | Needs |
-| --- | --- | --- |
-| `harsh-hero.png` | Hero section | Background removed (transparent PNG), roughly square |
-| `harsh-portrait.jpg` | Contact orbit | Normal photo, square crop |
-
-The hero portrait is optional at runtime: if `harsh-hero.png` is missing the
-image hides itself and the hero still lays out correctly.
+`uploads/harsh-portrait.jpg` is the portrait, used twice: in the hero orbit and
+in the Contact orbit. It wants a square crop, framed fairly tight, since both
+places mask it to a circle. Replacing that one file updates both.
 
 ## How the page works
 

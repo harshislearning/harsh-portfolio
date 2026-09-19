@@ -318,7 +318,7 @@
 
     // Hero scrub drives both the portrait parallax and the point-cloud
     // dispersion, so the 3D reacts to scroll without its own listener.
-    const portrait = document.getElementById('hero-portrait');
+    const orbit = document.getElementById('hero-orbit');
     ScrollTrigger.create({
       trigger: '#home',
       start: 'top top',
@@ -326,8 +326,8 @@
       scrub: true,
       onUpdate: self => {
         heroProgress = self.progress;
-        if (portrait) {
-          portrait.style.transform =
+        if (orbit) {
+          orbit.style.transform =
             'translate3d(0,' + (self.progress * 64).toFixed(2) + 'px,0) scale(' +
             (1 - self.progress * 0.06).toFixed(4) + ')';
         }
@@ -712,17 +712,6 @@
     renderCertificates();
     renderContacts();
     setupNav();
-
-    // A hero portrait that fails to load should leave the layout clean
-    // rather than showing a broken-image glyph and its alt text over the 3D.
-    // The error event can fire before this deferred script runs, so check the
-    // already-settled case too.
-    const portrait = document.getElementById('hero-portrait');
-    if (portrait) {
-      const hide = () => { portrait.style.display = 'none'; };
-      portrait.addEventListener('error', hide);
-      if (portrait.complete && portrait.naturalWidth === 0) hide();
-    }
 
     setupScroll();
     initHero3D();

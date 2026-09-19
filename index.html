@@ -75,16 +75,29 @@
         </div>
       </div>
 
+      <!-- Same orbit component as the Contact section, sitting over the
+           point cloud. overflow:hidden keeps the spinning ring from
+           widening page scroll. -->
       <div class="hero-figure">
-        <div class="hero-glow" aria-hidden="true"></div>
-        <img
-          src="uploads/harsh-hero.png"
-          alt="Harsh Patil"
-          class="hero-portrait"
-          id="hero-portrait"
-          width="820" height="820"
-          fetchpriority="high"
-          decoding="async">
+        <div class="orbit hero-orbit" id="hero-orbit">
+          <div class="orbit-halo"></div>
+          <div class="orbit-ring"></div>
+          <div class="orbit-ring orbit-ring-a"></div>
+          <div class="orbit-ring orbit-ring-b"></div>
+          <div class="orbit-ring orbit-ring-c"></div>
+          <div class="orbit-ring orbit-ring-d"></div>
+          <div class="orbit-ring orbit-spin"></div>
+
+          <div class="orbit-core">
+            <img src="uploads/harsh-portrait.jpg" alt="Harsh Patil"
+                 width="1254" height="1254" fetchpriority="high" decoding="async">
+          </div>
+
+          <span class="orbit-dot orbit-dot-1"></span>
+          <span class="orbit-dot orbit-dot-2"></span>
+          <span class="orbit-dot orbit-dot-3"></span>
+          <span class="orbit-dot orbit-dot-4"></span>
+        </div>
       </div>
     </div>
   </section>
