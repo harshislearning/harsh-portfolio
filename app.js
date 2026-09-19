@@ -127,9 +127,10 @@
     const grid = document.getElementById('projects-grid');
     if (!grid) return;
 
+    // Every card carries the same blocks in the same order, so the grid can
+    // size them all identically.
     CONFIG.projects.forEach((p, i) => {
-      // First project is the featured cell and spans the row.
-      const card = el('article', { class: 'proj reveal' + (i === 0 ? ' proj-feature' : '') });
+      const card = el('article', { class: 'proj reveal' });
 
       const media = el('div', { class: 'proj-media' });
       media.appendChild(el('img', {
@@ -144,7 +145,7 @@
       body.appendChild(el('span', { class: 'proj-cat' }, esc(p.category)));
       body.appendChild(el('h3', { class: 'proj-title' }, esc(p.title)));
       body.appendChild(el('p', { class: 'proj-tagline' }, esc(p.tagline)));
-      if (i === 0) body.appendChild(el('p', { class: 'proj-desc' }, esc(p.description)));
+      body.appendChild(el('p', { class: 'proj-desc' }, esc(p.description)));
 
       const tags = el('p', { class: 'tags' });
       p.tech.forEach(t => tags.appendChild(el('span', { class: 'tag' }, esc(t))));

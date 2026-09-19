@@ -557,9 +557,12 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------------------------- Projects ---------------------------------- */
 
+/* Uniform grid: equal columns, and grid-auto-rows:1fr forces every row to the
+   same height so no card is taller than another. */
 .proj-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  grid-auto-rows: 1fr;
   gap: clamp(16px, 2vw, 24px);
 }
 
@@ -574,15 +577,10 @@ a { color: inherit; text-decoration: none; }
 }
 .proj:hover { transform: translateY(-4px); border-color: var(--accent-line); }
 
-/* The featured project spans the full row and lays out side by side. */
-.proj-feature { grid-column: 1 / -1; flex-direction: row; }
-.proj-feature .proj-media { width: 52%; flex: 0 0 52%; aspect-ratio: auto; }
-.proj-feature .proj-body { flex: 1; justify-content: center; padding: clamp(24px, 3vw, 40px); }
-.proj-feature .proj-title { font-size: clamp(21px, 2.4vw, 28px); }
-
 .proj-media {
   position: relative;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
+  flex: 0 0 auto;
   overflow: hidden;
   background: linear-gradient(140deg, rgba(46, 28, 84, 0.9), rgba(13, 11, 20, 0.95));
 }
@@ -925,8 +923,6 @@ body.js .reveal.is-in {
   .cert-grid { grid-template-columns: repeat(2, 1fr); }
   .footer-grid { grid-template-columns: 1fr 1fr; }
 
-  .proj-feature { flex-direction: column; }
-  .proj-feature .proj-media { width: 100%; flex: none; aspect-ratio: 16 / 10; }
 }
 
 @media (max-width: 860px) {
