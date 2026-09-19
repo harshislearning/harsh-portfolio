@@ -508,6 +508,7 @@
       scrub: true,
       onUpdate: self => {
         heroProgress = self.progress;
+        if (heroSwap) heroSwap(self.progress);
         if (orbit) {
           orbit.style.transform =
             'translate3d(0,' + (self.progress * 64).toFixed(2) + 'px,0) scale(' +
@@ -741,6 +742,91 @@
       tex.dispose();
       renderer.dispose();
     });
+  }
+
+  /* =====================================================================
+     HERO — scroll-driven text swap
+
+     Two states share one fixed-height viewport. State A slides up and out
+     while state B slides in from below, both driven by the hero's existing
+     ScrollTrigger progress, so no extra scroll listener is added.
+     ===================================================================== */
+  // Kept early on purpose: the hero copy scrolls out of view around 20% of
+  // the hero's height, so a swap that finished later would complete
+  // off-screen and never actually be seen.
+  const SWAP_FROM = 0.03;   // hero scroll progress where the swap starts
+  const SWAP_TO   = 0.15;   // ...and where it completes
+
+  let heroSwap = null;
+
+  function setupHeroSwap() {
+    const swap = document.getElementById('hero-swap');
+    if (!swap) return;
+    const a = swap.querySelector('[data-state="a"]');
+    const b = swap.querySelector('[data-state="b"]');
+    if (!a || !b) return;
+
+    const bTitle = b.querySelector('.hero-title');
+    const aTitle = a.querySelector('.hero-title');
+
+    function fitTitle() {
+      // "AI Research Intern" is much longer than "Harsh Patil". At the same
+      // size it would wrap onto a second line and make the box taller, which
+      // would push the buttons down. Scale it to one line instead so the
+      // hero keeps its exact dimensions.
+      bTitle.style.fontSize = '';
+      bTitle.style.whiteSpace = 'nowrap';
+      const base = parseFloat(getComputedStyle(aTitle).fontSize);
+      const avail = swap.clientWidth;
+      const natural = bTitle.scrollWidth;
+      if (natural > avail && natural > 0) {
+        bTitle.style.fontSize = Math.floor(base * (avail / natural) * 100) / 100 + 'px';
+      }
+    }
+
+    function measure() {
+      swap.classList.remove('is-ready');
+      bTitle.style.whiteSpace = 'nowrap';
+      swap.style.removeProperty('--swap-h');
+      // eslint-disable-next-line no-unused-expressions
+      swap.offsetHeight;
+      fitTitle();
+      const h = a.offsetHeight;
+      if (!h) return;
+      swap.style.setProperty('--swap-h', h + 'px');
+      swap.classList.add('is-ready');
+      render(lastQ);
+    }
+
+    let lastQ = 0;
+
+    function render(q) {
+      lastQ = q;
+      // Smoothstep keeps the ends from starting and stopping abruptly while
+      // staying tied to scroll position.
+      const e = q * q * (3 - 2 * q);
+      a.style.transform = 'translateY(' + (-e * 100).toFixed(2) + '%)';
+      b.style.transform = 'translateY(' + ((1 - e) * 100).toFixed(2) + '%)';
+      a.style.opacity = (1 - e * 0.85).toFixed(3);
+      b.style.opacity = (0.15 + e * 0.85).toFixed(3);
+    }
+
+    measure();
+    window.addEventListener('load', measure);
+
+    let rt = 0;
+    window.addEventListener('resize', () => {
+      clearTimeout(rt);
+      rt = setTimeout(measure, 160);
+    });
+
+    if (reduceMotion) { render(0); return; }
+
+    heroSwap = (progress) => {
+      const q = clamp01((progress - SWAP_FROM) / (SWAP_TO - SWAP_FROM));
+      render(q);
+    };
+    render(0);
   }
 
   /* =====================================================================
@@ -1160,6 +1246,7 @@
     renderContacts();
     setupNav();
 
+    setupHeroSwap();
     setupScroll();
     setupProjectDeck();
     setupCursorTrail();

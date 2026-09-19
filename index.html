@@ -55,14 +55,24 @@
 
     <div class="hero-inner">
       <div class="hero-copy">
-        <h1 class="hero-title">
-          <span class="hero-greet">Hi, it's</span>
-          Harsh <span class="accent">Patil</span>
-        </h1>
+        <!-- "Hi, it's" stays put; only the two states below slide. -->
+        <span class="hero-greet">Hi, it's</span>
 
-        <p class="hero-roles">
-          Data Science <span>/</span> Machine Learning <span>/</span> Generative AI
-        </p>
+        <!-- Fixed-height viewport: both states are absolutely positioned
+             inside it, so swapping them cannot move the buttons. -->
+        <div class="hero-swap" id="hero-swap">
+          <div class="hero-state" data-state="a">
+            <h1 class="hero-title">Harsh <span class="accent">Patil</span></h1>
+            <p class="hero-roles">
+              Data Science <span>/</span> Machine Learning <span>/</span> Generative AI
+            </p>
+          </div>
+
+          <div class="hero-state" data-state="b">
+            <p class="hero-title">AI Research <span class="accent">Intern</span></p>
+            <p class="hero-roles">at Calyx Global</p>
+          </div>
+        </div>
 
         <div class="hero-cta">
           <a href="uploads/Harsh_Patil_Resume.pdf" class="btn btn-solid" data-action="resume">View Resume</a>
