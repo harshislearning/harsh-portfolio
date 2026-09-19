@@ -744,6 +744,160 @@
   }
 
   /* =====================================================================
+     PROJECTS — 3D card deck
+
+     The existing cards, unchanged, stacked and fanned with transforms only.
+     Deck mode needs room to spread, so below 680px the original grid stays
+     exactly as it is: five full-width cards cannot fan inside a phone
+     without either shrinking them or overflowing, and both are ruled out.
+     ===================================================================== */
+  const DECK_MIN_WIDTH = 680;
+
+  function deckTuning() {
+    const w = window.innerWidth;
+    if (w >= 1200) return { card: 360, spread: 142, angle: 4.2, yaw: 3.0 };
+    if (w >= 1000) return { card: 330, spread: 118, angle: 3.8, yaw: 2.8 };
+    if (w >= 820)  return { card: 318, spread: 94,  angle: 3.2, yaw: 2.4 };
+    return          { card: 300, spread: 72,  angle: 2.8, yaw: 2.0 };
+  }
+
+  function setupProjectDeck() {
+    const grid = document.getElementById('projects-grid');
+    if (!grid) return;
+    const cards = Array.prototype.slice.call(grid.querySelectorAll('.proj'));
+    if (!cards.length) return;
+
+    let open = false;
+    let decked = false;
+    let tuning = deckTuning();   // clamped in build()
+
+    function paintCards(t) {
+      const mid = (cards.length - 1) / 2;
+      cards.forEach((card, i) => {
+        const d = i - mid;
+        const a = Math.abs(d);
+        card.style.zIndex = String(Math.round(50 - a * 10));
+        card.style.transform = open
+          ? 'translateX(' + (d * t.spread).toFixed(1) + 'px)' +
+            ' translateZ(' + (-a * 18).toFixed(1) + 'px)' +
+            ' rotateY(' + (-d * t.yaw).toFixed(2) + 'deg)' +
+            ' rotateZ(' + (d * t.angle).toFixed(2) + 'deg)' +
+            ' scale(' + (1 - a * 0.018).toFixed(4) + ')'
+          : 'translateX(' + (d * 11).toFixed(1) + 'px)' +
+            ' translateZ(' + (-a * 10).toFixed(1) + 'px)' +
+            ' rotateZ(' + (d * 1.1).toFixed(2) + 'deg)' +
+            ' scale(' + (1 - a * 0.012).toFixed(4) + ')';
+      });
+    }
+
+    function teardown() {
+      grid.classList.remove('is-deck');
+      grid.style.removeProperty('--deck-h');
+      grid.style.removeProperty('--deck-card-w');
+      cards.forEach(c => {
+        c.style.transform = '';
+        c.style.zIndex = '';
+      });
+      decked = false;
+      open = false;
+    }
+
+    function build() {
+      const t = deckTuning();
+
+      // Measure in grid flow at the deck's card width, so the height is the
+      // real wrapped height rather than the three-column one.
+      teardown();
+      grid.style.gridTemplateColumns = 'repeat(auto-fit, ' + t.card + 'px)';
+      grid.style.justifyContent = 'center';
+      // eslint-disable-next-line no-unused-expressions
+      grid.offsetHeight;
+      let tallest = 0;
+      cards.forEach(c => { tallest = Math.max(tallest, c.offsetHeight); });
+      grid.style.removeProperty('grid-template-columns');
+      grid.style.removeProperty('justify-content');
+
+      if (!tallest) return;
+
+      // Rotating a tall card about a low origin swings its corners out, so
+      // reserve a little vertical slack to keep it off the neighbours.
+      // Clamp the spread to what actually fits. A rotated card's corners
+      // reach past its centre offset by roughly height*sin(angle), so the
+      // fan is always wider than the spread alone. Deriving the limit here
+      // beats hand-tuning numbers that break at the next odd width.
+      const avail = grid.clientWidth;
+      const bleed = tallest * Math.sin(t.angle * Math.PI / 180);
+      const maxSpread = (avail - t.card - 2 * bleed) / 4;
+      tuning = {
+        card: t.card,
+        angle: t.angle,
+        yaw: t.yaw,
+        spread: Math.max(0, Math.min(t.spread, maxSpread))
+      };
+
+      grid.style.setProperty('--deck-card-w', t.card + 'px');
+      grid.style.setProperty('--deck-h', Math.ceil(tallest + 46) + 'px');
+      grid.classList.add('is-deck');
+      decked = true;
+      paintCards(tuning);
+    }
+
+    function setOpen(v) {
+      if (!decked || open === v) return;
+      open = v;
+      paintCards(tuning);
+    }
+
+    const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+    if (hoverCapable) {
+      grid.addEventListener('pointerenter', e => {
+        if (e.pointerType !== 'touch') setOpen(true);
+      });
+      grid.addEventListener('pointerleave', e => {
+        if (e.pointerType === 'touch') return;
+        if (grid.contains(document.activeElement)) return;
+        setOpen(false);
+      });
+    }
+
+    // Touch: tap the deck to fan, tap outside to collapse. Links inside the
+    // cards keep working because this never preventDefaults.
+    grid.addEventListener('click', (e) => {
+      if (!decked) return;
+      if (e.target.closest('a')) return;
+      setOpen(!open);
+    });
+    document.addEventListener('click', (e) => {
+      if (decked && open && !grid.contains(e.target)) setOpen(false);
+    });
+
+    // Keyboard: tabbing into any card opens the fan so the focused card is
+    // not buried under the stack.
+    grid.addEventListener('focusin', () => setOpen(true));
+    grid.addEventListener('focusout', (e) => {
+      if (!grid.contains(e.relatedTarget)) setOpen(false);
+    });
+
+    function sync() {
+      const wide = window.innerWidth >= DECK_MIN_WIDTH;
+      if (reduceMotion || !wide) { if (decked) teardown(); return; }
+      build();
+    }
+
+    sync();
+    window.addEventListener('load', sync);
+
+    let rt = 0;
+    const requeue = () => { clearTimeout(rt); rt = setTimeout(sync, 180); };
+    window.addEventListener('resize', requeue);
+    // Belt and braces: the breakpoint itself, so crossing it is caught even
+    // where a resize event is missed.
+    const deckMq = window.matchMedia('(min-width: ' + DECK_MIN_WIDTH + 'px)');
+    if (deckMq.addEventListener) deckMq.addEventListener('change', requeue);
+  }
+
+  /* =====================================================================
      CURSOR IMAGE TRAIL
 
      Decorative only: a pointer-events:none layer behind everything from
@@ -1007,6 +1161,7 @@
     setupNav();
 
     setupScroll();
+    setupProjectDeck();
     setupCursorTrail();
     initHero3D();
   }
