@@ -309,7 +309,12 @@
       const w = window.innerWidth;
       const target = w >= 1024 ? 312 : w >= 768 ? 286 : 248;
       rows.forEach(e => {
-        e.size.collapsed = Math.max(68, e.bar.offsetHeight);
+        // An open row's bar is an absolute overlay, so its height is the row
+        // height, not the collapsed height. Leave that row's measurement
+        // alone; it is re-measured when it closes.
+        if (!e.row.classList.contains('is-open')) {
+          e.size.collapsed = Math.max(68, e.bar.offsetHeight);
+        }
         e.size.expanded = Math.max(target, e.size.collapsed + 140);
         e.state.render(e.state.value);
       });
@@ -328,12 +333,15 @@
     }
 
     function collapseAll() {
+      if (!activeRow) return;
       activeRow = null;
       rows.forEach(e => {
         e.row.classList.remove('is-open', 'is-dim');
         e.head.setAttribute('aria-expanded', 'false');
         springTo(e.state, 0);
       });
+      // Bars are back in flow, so collapsed heights can be trusted again.
+      requestAnimationFrame(measure);
     }
 
     if (hoverCapable) {
