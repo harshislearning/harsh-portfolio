@@ -25,6 +25,15 @@
 
     projects: [
       {
+        title: 'HistoScope — Lung & Colon Cancer Histopathology Classifier',
+        category: 'Deep Learning',
+        tagline: 'Classifies H&E histopathology tiles into five lung and colon diagnostic classes at 98.93% test accuracy.',
+        description: 'A MobileNetV2 transfer-learning model that separates benign tissue from adenocarcinoma and squamous cell carcinoma across lung and colon slides — 0.9998 ROC-AUC, 1.000 malignancy sensitivity, and 97.33% accuracy held under stain shift, served through a Streamlit app that returns the full probability distribution for every tile.',
+        image: 'uploads/histoscope.webp',
+        tech: ['Deep Learning', 'Computer Vision', 'Transfer Learning', 'MobileNetV2', 'TensorFlow', 'Medical Imaging', 'Streamlit', 'Python'],
+        github: 'https://github.com/harshislearning/Lung-and-colon-cancer-image-classification'
+      },
+      {
         title: 'Ask My Docs',
         category: 'RAG',
         tagline: 'A production-grade RAG system that answers questions from your PDFs — with citations you can trust.',
