@@ -937,21 +937,27 @@
 
      A click, and only a click, opens the full card.
 
-     Below 680px the original grid stays exactly as it is: six cards cannot
-     collapse and expand inside a phone without shrinking the open one past
-     readability.
+     The same strip runs on phones. Six cards cannot sit side by side inside
+     a phone without squeezing the open one past readability, so there the
+     row becomes a horizontal rail: it scrolls, and the widened card is
+     scrolled into view for you. With no pointer to hover, the first tap
+     widens a card and the second opens it — the reference's click does the
+     same job.
      ===================================================================== */
-  const STRIP_MIN_WIDTH = 680;
   const STRIP_GAP = 6;          // matches the reference's gap-1
   const STRIP_SLICE_MIN = 40;   // narrowest a collapsed card may get
   const STRIP_SLICE_MAX = 96;
+  const STRIP_RAIL_SLICE = 46;  // slice width once the row has to scroll
 
-  function stripCardWidth() {
+  function stripCardWidth(avail) {
     const w = window.innerWidth;
     if (w >= 1200) return 360;
     if (w >= 1000) return 330;
     if (w >= 820) return 318;
-    return 300;
+    if (w >= 680) return 300;
+    // Phone: leave a slice of the next card showing, so the row reads as a
+    // rail that carries on rather than a lone card.
+    return Math.max(230, Math.min(300, Math.round(avail * 0.78)));
   }
 
   function setupProjectStrip() {
@@ -961,9 +967,12 @@
     if (!cards.length) return;
 
     let stripped = false;
+    let railed = false; // row scrolls instead of fitting (phones)
     let active = 0;     // the widened card; hover moves it
     let expanded = -1;  // the opened card; only a click sets this
     let heights = { compact: 0, full: 0 };
+    // Click carries no pointerType, so the last pointerdown stands in for it.
+    let lastPointer = 'mouse';
 
     function paint() {
       cards.forEach((c, i) => {
@@ -973,7 +982,11 @@
 
     function applyHeight() {
       if (!stripped) return;
-      const box = expanded >= 0 ? heights.full : heights.compact;
+      const box = expanded >= 0 ? heights.each[expanded] : heights.compact;
+      // The opened card's own height, so the row grows by exactly what that
+      // card needs.
+      grid.style.setProperty('--strip-h-full',
+        Math.ceil(heights.each[Math.max(0, expanded)]) + 'px');
       grid.style.setProperty('--strip-h-box', Math.ceil(box) + 'px');
     }
 
@@ -983,6 +996,7 @@
       if (expanded >= 0 || active === i) return;
       active = i;
       paint();
+      scrollActiveIntoView(true);
     }
 
     function setExpanded(i) {
@@ -994,42 +1008,103 @@
       grid.classList.toggle('has-expanded', i >= 0);
       applyHeight();
       paint();
+      scrollActiveIntoView(true);
+
+      // The measured height is taken in grid flow, which can be a line of
+      // text out from what the card ends up wrapping to in the row. Once the
+      // card has settled, take its real height and correct the row.
+      clearTimeout(fitTimer);
+      if (i >= 0) fitTimer = setTimeout(() => refit(i), 380);
     }
 
-    // Both card heights, measured in grid flow at the strip's card width so
-    // they are the real wrapped heights rather than the three-column ones.
-    function measureHeights(cardW) {
-      grid.style.gridTemplateColumns = 'repeat(auto-fit, ' + cardW + 'px)';
+    let fitTimer = 0;
+    function refit(i) {
+      if (!stripped || expanded !== i) return;
+      const card = cards[i];
+      const shot = card.querySelector('.proj-media');
+      const body = card.querySelector('.proj-body');
+      if (!shot || !body) return;
+      const need = Math.ceil(
+        shot.getBoundingClientRect().height +
+        body.getBoundingClientRect().height + 2   // the card's own borders
+      );
+      if (Math.abs(need - heights.each[i]) < 2) return;
+      heights.each[i] = need;
+      applyHeight();
+    }
+
+    // Both card heights, measured in grid flow so they are the real wrapped
+    // heights rather than the three-column ones. Compact is measured at the
+    // widened width, full at the opened width — on a phone rail the two
+    // differ, since an opened card takes the whole rail.
+    function measureHeights(cardW, openW) {
+      const wasExpanded = cards.map(c => c.classList.contains('is-expanded'));
       grid.style.justifyContent = 'center';
 
-      const wasExpanded = cards.map(c => c.classList.contains('is-expanded'));
+      const at = (w, expandedState) => {
+        grid.style.gridTemplateColumns = 'repeat(auto-fit, ' + w + 'px)';
+        // Equal rows, and grid's default stretch, would both hand a card the
+        // height of the tallest card beside it — the opposite of what the
+        // per-card pass is measuring.
+        grid.style.gridAutoRows = expandedState ? 'auto' : '';
+        grid.style.alignItems = expandedState ? 'start' : '';
+        cards.forEach(c => c.classList.toggle('is-expanded', expandedState));
+        // eslint-disable-next-line no-unused-expressions
+        grid.offsetHeight;
+        return cards.map(c => c.offsetHeight);
+      };
 
-      cards.forEach(c => c.classList.remove('is-expanded'));
-      // eslint-disable-next-line no-unused-expressions
-      grid.offsetHeight;
-      let compact = 0;
-      cards.forEach(c => { compact = Math.max(compact, c.offsetHeight); });
-
-      cards.forEach(c => c.classList.add('is-expanded'));
-      // eslint-disable-next-line no-unused-expressions
-      grid.offsetHeight;
-      let full = 0;
-      cards.forEach(c => { full = Math.max(full, c.offsetHeight); });
+      const compact = Math.max.apply(null, at(cardW, false));
+      // Per card, not the tallest of them: an opened card sizes to its own
+      // content, so a short one is not left with a stretch of empty panel.
+      const each = at(openW, true).map(h => Math.max(h, compact));
 
       cards.forEach((c, i) => c.classList.toggle('is-expanded', wasExpanded[i]));
       grid.style.removeProperty('grid-template-columns');
+      grid.style.removeProperty('grid-auto-rows');
+      grid.style.removeProperty('align-items');
       grid.style.removeProperty('justify-content');
 
-      return { compact: compact, full: Math.max(full, compact) };
+      return { compact: compact, each: each };
+    }
+
+    // On a rail, the card the strip is showing has to be brought into view:
+    // there is no pointer, so nothing else would move the scroll.
+    //
+    // Run twice. The widths are still animating on the first pass, so the
+    // card's offset is the one it is leaving, not the one it is landing on;
+    // the second pass, after the widening has settled, corrects it.
+    let scrollTimer = 0;
+    function scrollActiveIntoView(smooth) {
+      if (!stripped || !railed) return;
+      const go = () => {
+        const card = cards[expanded >= 0 ? expanded : active];
+        if (!card || !railed) return;
+        // Measured against the rail itself. offsetLeft is no use here: the
+        // offset parent is the section wrapper, not the scroller, so it
+        // carries the wrapper's own inset.
+        const delta = card.getBoundingClientRect().left -
+                      grid.getBoundingClientRect().left;
+        grid.scrollTo({
+          left: Math.max(0, grid.scrollLeft + delta - (expanded >= 0 ? 0 : STRIP_GAP)),
+          behavior: smooth && !reduceMotion ? 'smooth' : 'auto'
+        });
+      };
+      go();
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(go, 360);   // just past the 320ms widening
     }
 
     function teardown() {
-      grid.classList.remove('is-strip');
-      ['--strip-h', '--strip-h-full', '--strip-h-box',
-       '--strip-card-w', '--strip-slice', '--strip-media-h']
+      grid.classList.remove('is-strip', 'is-rail');
+      ['--strip-h', '--strip-h-full', '--strip-h-box', '--strip-card-w',
+       '--strip-open-w', '--strip-slice', '--strip-media-h',
+       '--strip-media-open-h']
         .forEach(p => grid.style.removeProperty(p));
       cards.forEach(c => c.classList.remove('is-active'));
+      grid.scrollLeft = 0;
       stripped = false;
+      railed = false;
     }
 
     function build() {
@@ -1039,38 +1114,53 @@
       const gaps = STRIP_GAP * (n - 1);
       const avail = grid.clientWidth;
 
-      // The open card gets its usual width unless the slices would be
-      // squeezed below their minimum, in which case it gives ground first.
-      const cardW = Math.min(
-        stripCardWidth(),
-        avail - gaps - (n - 1) * STRIP_SLICE_MIN
-      );
-      // Too tight for a readable open card: leave the plain grid in place.
-      if (cardW < 260) return;
+      let cardW = stripCardWidth(avail);
+      let slice = Math.floor((avail - cardW - gaps) / (n - 1));
+      let rail = false;
 
-      heights = measureHeights(cardW);
+      if (slice < STRIP_SLICE_MIN) {
+        // The whole row will not fit at a readable card width, so it becomes
+        // a rail instead of squeezing the card: same widths, horizontal
+        // scroll, and the widened card is scrolled to.
+        rail = true;
+        slice = STRIP_RAIL_SLICE;
+        cardW = Math.min(cardW, avail - 34);
+      } else {
+        slice = Math.min(STRIP_SLICE_MAX, slice);
+      }
+      if (cardW < 200) return;   // nothing readable fits: keep the plain grid
+
+      // An opened card takes the full width of a rail, so a phone still gets
+      // the same full-width card it had before.
+      const openW = rail ? avail : cardW;
+
+      heights = measureHeights(cardW, openW);
       if (!heights.compact) return;
 
-      const slice = Math.max(
-        STRIP_SLICE_MIN,
-        Math.min(STRIP_SLICE_MAX, Math.floor((avail - cardW - gaps) / (n - 1)))
-      );
-
       grid.style.setProperty('--strip-card-w', cardW + 'px');
+      grid.style.setProperty('--strip-open-w', openW + 'px');
       grid.style.setProperty('--strip-slice', slice + 'px');
       grid.style.setProperty('--strip-h', Math.ceil(heights.compact) + 'px');
-      grid.style.setProperty('--strip-h-full', Math.ceil(heights.full) + 'px');
-      // The shot's own 16/9 height at the open width. A collapsed card hands
-      // the whole card over to the shot instead, so no slice is left as a
-      // bare panel.
+      // The shot's own 16/9 height at the widened width. A collapsed card
+      // hands the whole card over to the shot instead, so no slice is left
+      // as a bare panel.
       grid.style.setProperty('--strip-media-h',
         Math.round((cardW - 2) * 9 / 16) + 'px');
+      grid.style.setProperty('--strip-media-open-h',
+        Math.round((openW - 2) * 9 / 16) + 'px');
 
       grid.classList.add('is-strip');
+      grid.classList.toggle('is-rail', rail);
       stripped = true;
+      railed = rail;
       applyHeight();
       paint();
+      scrollActiveIntoView(false);
     }
+
+    grid.addEventListener('pointerdown', (e) => {
+      lastPointer = e.pointerType || 'mouse';
+    }, true);
 
     cards.forEach((card, i) => {
       // Hover widens a card. No pointerleave reset: the last card pointed at
@@ -1081,12 +1171,20 @@
       });
 
       // Keyboard equivalent, so tabbing does not leave the focused card as a
-      // 40px slice.
+      // 46px slice.
       card.addEventListener('focusin', () => setActive(i));
 
       card.addEventListener('click', (e) => {
         if (e.target.closest('a')) return;   // the GitHub link still wins
         e.stopPropagation();
+        // Touch has no hover to widen a card first, so the tap does that job
+        // and the next one opens it. A slice carries only a sliver of a
+        // screenshot: opening it straight from there would be a blind tap.
+        if (stripped && lastPointer === 'touch' && active !== i) {
+          if (expanded >= 0) setExpanded(-1);
+          setActive(i);
+          return;
+        }
         setExpanded(expanded === i ? -1 : i);
       });
     });
@@ -1097,8 +1195,7 @@
     });
 
     function sync() {
-      const wide = window.innerWidth >= STRIP_MIN_WIDTH;
-      if (reduceMotion || !wide) { if (stripped) teardown(); return; }
+      if (reduceMotion) { if (stripped) teardown(); return; }
       build();
     }
 
@@ -1108,10 +1205,13 @@
     let rt = 0;
     const requeue = () => { clearTimeout(rt); rt = setTimeout(sync, 180); };
     window.addEventListener('resize', requeue);
-    // Belt and braces: the breakpoint itself, so crossing it is caught even
-    // where a resize event is missed.
-    const stripMq = window.matchMedia('(min-width: ' + STRIP_MIN_WIDTH + 'px)');
-    if (stripMq.addEventListener) stripMq.addEventListener('change', requeue);
+    // Belt and braces: the widths the card size steps at, so crossing one is
+    // caught even where a resize event is missed.
+    [1200, 1000, 820, 680].forEach(w => {
+      const mq = window.matchMedia('(min-width: ' + w + 'px)');
+      if (mq.addEventListener) mq.addEventListener('change', requeue);
+    });
+    window.addEventListener('orientationchange', requeue);
   }
 
   /* =====================================================================
