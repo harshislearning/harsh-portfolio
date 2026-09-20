@@ -1092,8 +1092,7 @@
     function teardown() {
       grid.classList.remove('is-strip', 'is-swipe');
       ['--strip-h', '--strip-h-full', '--strip-h-box', '--strip-card-w',
-       '--strip-open-w', '--strip-slice', '--strip-media-h',
-       '--strip-media-open-h', '--swipe-pad']
+       '--strip-slice', '--strip-media-h', '--swipe-pad']
         .forEach(p => grid.style.removeProperty(p));
       cards.forEach(c => c.classList.remove('is-active'));
       grid.scrollLeft = 0;
@@ -1119,16 +1118,14 @@
       if (!heights.compact) return;
 
       grid.style.setProperty('--strip-card-w', cardW + 'px');
-      grid.style.setProperty('--strip-open-w', cardW + 'px');
       grid.style.setProperty('--strip-slice',
         Math.min(STRIP_SLICE_MAX, slice) + 'px');
       grid.style.setProperty('--strip-h', Math.ceil(heights.compact) + 'px');
       // The shot's own 16/9 height at the widened width. A collapsed card
       // hands the whole card over to the shot instead, so no slice is left
       // as a bare panel.
-      const shotH = Math.round((cardW - 2) * 9 / 16) + 'px';
-      grid.style.setProperty('--strip-media-h', shotH);
-      grid.style.setProperty('--strip-media-open-h', shotH);
+      grid.style.setProperty('--strip-media-h',
+        Math.round((cardW - 2) * 9 / 16) + 'px');
 
       grid.classList.add('is-strip');
       stripped = true;

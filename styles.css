@@ -645,12 +645,8 @@ a { color: inherit; text-decoration: none; }
 .proj-grid.is-strip .proj.is-active { width: var(--strip-card-w); }
 
 /* Opened card takes the taller height; the row grows to match so the card
-   is never clipped by the container. On a rail it also takes the full
-   width, so a phone gets the same full-width open card it had before. */
-.proj-grid.is-strip .proj.is-expanded {
-  width: var(--strip-open-w);
-  height: var(--strip-h-full);
-}
+   is never clipped by the container. */
+.proj-grid.is-strip .proj.is-expanded { height: var(--strip-h-full); }
 
 /* --- Phone carousel -----------------------------------------------------
    No room to collapse and expand six cards inside a phone, and a widened
@@ -710,10 +706,8 @@ a { color: inherit; text-decoration: none; }
   height: var(--strip-h);
   transition: height 320ms var(--ease);
 }
-.proj-grid.is-strip .proj.is-active .proj-media { height: var(--strip-media-h); }
-/* An opened rail card is wider than a widened one, so its shot needs the
-   16/9 height for that wider box. */
-.proj-grid.is-strip .proj.is-expanded .proj-media { height: var(--strip-media-open-h); }
+.proj-grid.is-strip .proj.is-active .proj-media,
+.proj-grid.is-strip .proj.is-expanded .proj-media { height: var(--strip-media-h); }
 
 /* Fixed width, so the title and tags never reflow while the card closes —
    they are clipped by the card instead, and faded out on the way. */
@@ -721,12 +715,9 @@ a { color: inherit; text-decoration: none; }
   flex: 0 0 auto;
   width: calc(var(--strip-card-w) - 2px);
   opacity: 0;
-  transition: width 320ms var(--ease), opacity 240ms var(--ease);
+  transition: opacity 240ms var(--ease);
 }
 .proj-grid.is-strip .proj.is-active .proj-body { opacity: 1; }
-.proj-grid.is-strip .proj.is-expanded .proj-body {
-  width: calc(var(--strip-open-w) - 2px);
-}
 
 .proj {
   display: flex;
