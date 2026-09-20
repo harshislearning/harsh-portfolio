@@ -25,10 +25,10 @@
 
     projects: [
       {
-        title: 'HistoScope — Lung & Colon Cancer Histopathology Classifier',
+        title: 'HistoScope - Lung & Colon Cancer Histopathology Classifier',
         category: 'DL',
         tagline: 'Classifies H&E histopathology tiles into five lung and colon diagnostic classes at 98.93% test accuracy.',
-        description: 'A MobileNetV2 transfer-learning model that separates benign tissue from adenocarcinoma and squamous cell carcinoma across lung and colon slides — 0.9998 ROC-AUC, 1.000 malignancy sensitivity, and 97.33% accuracy held under stain shift, served through a Streamlit app that returns the full probability distribution for every tile.',
+        description: 'A MobileNetV2 transfer-learning model that separates benign tissue from adenocarcinoma and squamous cell carcinoma across lung and colon slides, at 0.9998 ROC-AUC, 1.000 malignancy sensitivity, and 97.33% accuracy held under stain shift, served through a Streamlit app that returns the full probability distribution for every tile.',
         image: 'uploads/histoscope.webp',
         tech: ['Deep Learning', 'Computer Vision', 'Transfer Learning', 'MobileNetV2', 'TensorFlow', 'Medical Imaging', 'Streamlit', 'Python'],
         github: 'https://github.com/harshislearning/Lung-and-colon-cancer-image-classification'
@@ -36,8 +36,8 @@
       {
         title: 'Ask My Docs',
         category: 'RAG',
-        tagline: 'A production-grade RAG system that answers questions from your PDFs — with citations you can trust.',
-        description: 'Hybrid retrieval (dense + keyword) + reranking + cited, verified answers — served via FastAPI and Streamlit, with an automated eval suite gating every change in CI.',
+        tagline: 'A production-grade RAG system that answers questions from your PDFs, with citations you can trust.',
+        description: 'Hybrid retrieval (dense + keyword) + reranking + cited, verified answers, served via FastAPI and Streamlit, with an automated eval suite gating every change in CI.',
         image: 'uploads/Screenshot 2026-08-11 123718.png',
         tech: ['RAG', 'LLM', 'FastAPI', 'Streamlit', 'FAISS', 'BM25', 'Python', 'CI/CD'],
         github: 'https://github.com/harshislearning/Ask-My-Docs'
@@ -46,7 +46,7 @@
         title: 'Vendor Invoice Intelligence Platform',
         category: 'ML',
         tagline: 'ML-driven freight cost forecasting and invoice risk flagging for procurement & finance teams.',
-        description: 'An end-to-end ML system that predicts vendor freight costs and automatically flags high-risk invoices for manual review — built on real invoice/purchase data with a live Streamlit dashboard.',
+        description: 'An end-to-end ML system that predicts vendor freight costs and automatically flags high-risk invoices for manual review, built on real invoice/purchase data with a live Streamlit dashboard.',
         image: 'uploads/Screenshot 2026-08-13 151213.png',
         tech: ['Machine Learning', 'Regression', 'Classification', 'Python', 'Scikit-learn', 'Pandas', 'SQLite', 'Streamlit'],
         github: 'https://github.com/harshislearning/-Vendor-Invoice-Intelligence-Platform'
@@ -54,7 +54,7 @@
       {
         title: 'AI-Powered Synthetic Data Generator & Data Cleaning Tutor',
         category: 'GenAI',
-        tagline: 'Generates messy, realistic datasets on demand — then teaches you exactly how to clean them.',
+        tagline: 'Generates messy, realistic datasets on demand, then teaches you exactly how to clean them.',
         description: 'A Streamlit app that creates domain-specific synthetic datasets with intentionally injected data quality issues, then uses an LLM to generate a step-by-step Python or SQL cleaning solution for the exact dataset you just made.',
         image: 'uploads/Screenshot (130).png',
         tech: ['LLM', 'Streamlit', 'Python', 'Pandas', 'Faker', 'Groq API', 'EdTech'],
@@ -63,7 +63,7 @@
       {
         title: 'Prediction of FC Barcelona Football Matches',
         category: 'ML',
-        tagline: 'Predicting Win / Draw / Loss for FC Barcelona matches — built on a self-made dataset, achieving 72.22% accuracy.',
+        tagline: 'Predicting Win / Draw / Loss for FC Barcelona matches, built on a self-made dataset, achieving 72.22% accuracy.',
         description: "A machine learning model trained on a custom-built dataset of FC Barcelona's 2023/24 and 2024/25 seasons, served through a Flask web app that predicts match outcomes from opponent and home/away input.",
         image: 'uploads/Screenshot 2026-08-11 122140.png',
         tech: ['Machine Learning', 'Flask', 'Python', 'Scikit-learn', 'Sports Analytics', 'Random Forest', 'XGBoost'],
@@ -72,8 +72,8 @@
       {
         title: 'LinkedIn Post Generator',
         category: 'GenAI',
-        tagline: 'AI that writes LinkedIn posts in your own voice — trained on your past posts, not a generic template.',
-        description: 'An LLM-powered tool that generates LinkedIn posts matching a chosen topic, language, and length — using few-shot examples pulled from a real post history to keep the writing style human, not robotic.',
+        tagline: 'AI that writes LinkedIn posts in your own voice, trained on your past posts, not a generic template.',
+        description: 'An LLM-powered tool that generates LinkedIn posts matching a chosen topic, language, and length, using few-shot examples pulled from a real post history to keep the writing style human, not robotic.',
         image: 'uploads/Screenshot (80).png',
         tech: ['LLM', 'LangChain', 'Python', 'Prompt Engineering', 'Few-Shot Learning', 'NLP'],
         github: 'https://github.com/harshislearning/Linkedin-Post-Generator'
@@ -451,7 +451,7 @@
       const resume = e.target.closest('[data-action="resume"]');
       if (resume) {
         e.preventDefault();
-        openPdf('Harsh Patil — Resume', CONFIG.resumePdf);
+        openPdf('Harsh Patil - Resume', CONFIG.resumePdf);
         return;
       }
 
@@ -1653,7 +1653,7 @@
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
         resolve(window.pdfjsLib);
       };
-      s.onerror = () => reject(new Error('Could not reach the pdf.js CDN — check your connection.'));
+      s.onerror = () => reject(new Error('Could not reach the pdf.js CDN. Check your connection.'));
       document.head.appendChild(s);
     });
     return pdfLibPromise;
