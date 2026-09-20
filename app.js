@@ -1205,6 +1205,7 @@
       stripped = true;
       applyHeight();
       paint();
+      showHints('strip');
     }
 
     // Phone carousel: every card at full size in one draggable row, snapping
@@ -1232,37 +1233,38 @@
       applyHeight();
       paint();
       paintSwipe();
-      showHints();
+      showHints('swipe');
     }
 
-    /* ---- the two hints under the carousel ------------------------------
-       A row of cards that must be tapped and dragged says none of that by
-       itself, so both gestures are spelled out. Each one also does what it
-       says when pressed: no label here points at something you cannot
-       simply press instead. */
+    /* ---- the hints under the row ---------------------------------------
+       Neither arrangement says what it wants done to it, so the gestures
+       are spelled out: both of them on a phone, where a card has to be
+       dragged to as well as opened, and the one that applies anywhere
+       else. Each hint also does what it says when pressed, so no label
+       points at something you cannot simply press instead. */
     let hints = null;
+    let hintOpen = null;
+    let hintNext = null;
 
-    function showHints() {
-      if (hints) { hints.hidden = false; return; }
-
+    function buildHints() {
       hints = el('div', { class: 'proj-hints' });
 
-      const tapBtn = el('button', { type: 'button', class: 'proj-hint' },
+      hintOpen = el('button', { type: 'button', class: 'proj-hint' },
         '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
         '<circle cx="8" cy="8" r="2.4"/><path d="M3.6 3.6a6.2 6.2 0 0 0 0 8.8M12.4 3.6a6.2 6.2 0 0 1 0 8.8"/>' +
-        '</svg><span>Tap a card for details</span>');
+        '</svg><span></span>');
 
-      const swipeBtn = el('button', { type: 'button', class: 'proj-hint' },
+      hintNext = el('button', { type: 'button', class: 'proj-hint' },
         '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
         '<path d="M1.6 8h12.8M4.6 4.8 1.4 8l3.2 3.2M11.4 4.8 14.6 8l-3.2 3.2"/>' +
         '</svg><span>Swipe for more projects</span>');
 
-      tapBtn.addEventListener('click', (e) => {
+      hintOpen.addEventListener('click', (e) => {
         e.stopPropagation();
         setExpanded(expanded >= 0 ? -1 : active);
       });
 
-      swipeBtn.addEventListener('click', (e) => {
+      hintNext.addEventListener('click', (e) => {
         e.stopPropagation();
         if (expanded >= 0) setExpanded(-1);
         active = (active + 1) % cards.length;
@@ -1270,9 +1272,19 @@
         scrollActiveIntoView(true);
       });
 
-      hints.appendChild(tapBtn);
-      hints.appendChild(swipeBtn);
+      hints.appendChild(hintOpen);
+      hints.appendChild(hintNext);
       grid.parentNode.insertBefore(hints, grid.nextSibling);
+    }
+
+    // A phone is tapped and a laptop is clicked, and the row only has to be
+    // swiped where the cards do not all fit at once.
+    function showHints(mode) {
+      if (!hints) buildHints();
+      hints.hidden = false;
+      hintOpen.querySelector('span').textContent =
+        mode === 'swipe' ? 'Tap a card for details' : 'Click a card for details';
+      hintNext.hidden = mode !== 'swipe';
     }
 
     function hideHints() {

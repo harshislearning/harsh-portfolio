@@ -719,6 +719,9 @@ a { color: inherit; text-decoration: none; }
               background var(--t-fast) var(--ease);
 }
 
+/* inline-flex would otherwise beat the UA rule for [hidden]. */
+.proj-hint[hidden] { display: none; }
+
 .proj-hint svg {
   width: 14px;
   height: 14px;
