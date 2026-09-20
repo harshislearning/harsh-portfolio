@@ -502,16 +502,92 @@
   }
 
   /* =====================================================================
+     SKEW-IN, PER LINE
+
+     Reference: Originkit "Skew In Text Effect", which skews a whole block
+     in from the left. A heading is one short line and takes that as it is.
+     A paragraph is not: sheared as one block it slides, where line by line
+     it assembles — so the lines are split out here and given a stagger.
+
+     The split is by rendered line, not by markup: every word is wrapped,
+     measured, and the ones sharing a vertical position are gathered into
+     one line. That has to be redone whenever the text rewraps, so it is
+     rebuilt from the original string on resize and once the web font has
+     landed, rather than re-measuring wrappers built from the last pass.
+     ===================================================================== */
+  const SKEW_LINE_STAGGER = 90;   // ms between one line and the next
+
+  function setupSkewLines() {
+    const hosts = Array.prototype.slice.call(document.querySelectorAll('.skew-lines'));
+    if (!hosts.length) return;
+
+    hosts.forEach(host => {
+      const node = host.querySelector('p') || host;
+      // Kept, because each pass starts from the text again. Measuring a
+      // node that has already been split measures the line wrappers.
+      const source = node.textContent.replace(/\s+/g, ' ').trim();
+      if (!source) return;
+
+      function split() {
+        const words = source.split(' ');
+
+        node.textContent = '';
+        const marks = words.map((w, i) => {
+          const s = el('span');
+          s.textContent = i < words.length - 1 ? w + ' ' : w;
+          node.appendChild(s);
+          return s;
+        });
+
+        // Words that share a top are on the same rendered line.
+        const lines = [];
+        let top = null;
+        marks.forEach(s => {
+          const t = Math.round(s.offsetTop);
+          if (top === null || t !== top) { lines.push([]); top = t; }
+          lines[lines.length - 1].push(s.textContent);
+        });
+
+        node.textContent = '';
+        lines.forEach((words, i) => {
+          const line = el('span', { class: 'skew-line' });
+          line.style.transitionDelay = (i * SKEW_LINE_STAGGER) + 'ms';
+          // The trailing space stays. Blocks are concatenated with nothing
+          // between them, so trimming it welds the last word of one line to
+          // the first of the next for anything reading the text rather than
+          // looking at it — copy and paste, and a screen reader. At the end
+          // of a line box the space collapses, so it costs nothing.
+          line.textContent = words.join('');
+          node.appendChild(line);
+        });
+
+        host.classList.add('is-split');
+      }
+
+      split();
+
+      let t = 0;
+      const requeue = () => { clearTimeout(t); t = setTimeout(split, 180); };
+      window.addEventListener('resize', requeue);
+      // Measured in whatever font was on screen at the time. If that was the
+      // fallback, every line break is wrong the moment the real one lands.
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(split).catch(() => {});
+      }
+    });
+  }
+
+  /* =====================================================================
      SCROLL CHOREOGRAPHY (GSAP ScrollTrigger — no scroll listeners)
      ===================================================================== */
   let heroProgress = 0;
 
   function setupScroll() {
-    // .skew-in rides the same batch: it is a different arrival, but it is
-    // still "add is-in when this scrolls into view", and putting it through
-    // one mechanism keeps it staggered with the elements beside it.
+    // The skew-in variants ride the same batch: a different arrival, but
+    // still "add is-in when this scrolls into view", and putting them
+    // through one mechanism keeps them staggered with what is around them.
     const reveals = Array.prototype.slice.call(
-      document.querySelectorAll('.reveal, .skew-in')
+      document.querySelectorAll('.reveal, .skew-in, .skew-lines')
     );
 
     if (reduceMotion || !window.gsap || !window.ScrollTrigger) {
@@ -1895,6 +1971,9 @@
     setupNav();
 
     setupHeroSwap();
+    // Before the scroll batch, so the lines exist to be revealed and the
+    // triggers are measured against the split paragraph.
+    setupSkewLines();
     setupScroll();
     setupProjectStrip();
     setupFluidBackground('fluid-zone');
