@@ -926,102 +926,77 @@
   }
 
   /* =====================================================================
-     PROJECTS — 3D card deck
+     PROJECTS — hover-expand strip
 
-     The existing cards, unchanged, stacked and fanned with transforms only.
-     Deck mode needs room to spread, so below 680px the original grid stays
-     exactly as it is: five full-width cards cannot fan inside a phone
-     without either shrinking them or overflowing, and both are ruled out.
+     Animation reference: Skiper UI "skiper52" (HoverExpand_001) by
+     @gurvinder-singh02, rebuilt in vanilla CSS and JS because this site
+     carries no React and no Framer Motion. Same behaviour: the cards sit in
+     one centred row with every card but one collapsed to a narrow slice,
+     and the card under the pointer widens back to full size. The cards
+     themselves are untouched — only their width and the row layout move.
+
+     A click, and only a click, opens the full card.
+
+     Below 680px the original grid stays exactly as it is: six cards cannot
+     collapse and expand inside a phone without shrinking the open one past
+     readability.
      ===================================================================== */
-  const DECK_MIN_WIDTH = 680;
+  const STRIP_MIN_WIDTH = 680;
+  const STRIP_GAP = 6;          // matches the reference's gap-1
+  const STRIP_SLICE_MIN = 40;   // narrowest a collapsed card may get
+  const STRIP_SLICE_MAX = 96;
 
-  function deckTuning() {
+  function stripCardWidth() {
     const w = window.innerWidth;
-    if (w >= 1200) return { card: 360, spread: 142, angle: 4.2, yaw: 3.0 };
-    if (w >= 1000) return { card: 330, spread: 118, angle: 3.8, yaw: 2.8 };
-    if (w >= 820)  return { card: 318, spread: 94,  angle: 3.2, yaw: 2.4 };
-    return          { card: 300, spread: 72,  angle: 2.8, yaw: 2.0 };
+    if (w >= 1200) return 360;
+    if (w >= 1000) return 330;
+    if (w >= 820) return 318;
+    return 300;
   }
 
-  function setupProjectDeck() {
+  function setupProjectStrip() {
     const grid = document.getElementById('projects-grid');
     if (!grid) return;
     const cards = Array.prototype.slice.call(grid.querySelectorAll('.proj'));
     if (!cards.length) return;
 
-    let open = false;
-    let decked = false;
-    let tuning = deckTuning();   // clamped in build()
-    let expanded = -1;           // card opened by a click
-    // Single source of truth for the carousel. Every card's position is its
-    // offset from this, so pointing at a card slides the whole arrangement
-    // rather than reordering or rebuilding it.
-    let active = Math.round((cards.length - 1) / 2);
+    let stripped = false;
+    let active = 0;     // the widened card; hover moves it
+    let expanded = -1;  // the opened card; only a click sets this
+    let heights = { compact: 0, full: 0 };
 
-    function paintCards(t) {
-      cards.forEach((card, i) => {
-        const d = i - active;
-        const a = Math.abs(d);
-        const isActive = i === active;
-
-        card.style.zIndex = String(
-          i === expanded ? 120 : isActive ? 100 : Math.round(50 - a * 10)
-        );
-
-        // Far cards would otherwise over-rotate now that the offset can
-        // reach four steps instead of two.
-        const rotSteps = Math.max(-2.2, Math.min(2.2, d));
-
-        // No positive translateZ on the active card. Pushing it toward the
-        // viewer projects it away from the container's perspective origin,
-        // which slides it off the centre it is supposed to land on. Being
-        // upright, full scale and top of the z stack already reads as front.
-        card.style.transform = open
-          ? 'translateX(' + (d * t.spread).toFixed(1) + 'px)' +
-            ' translateZ(' + (-a * 18).toFixed(1) + 'px)' +
-            ' rotateY(' + (-d * t.yaw).toFixed(2) + 'deg)' +
-            ' rotateZ(' + (isActive || i === expanded ? 0 : rotSteps * t.angle).toFixed(2) + 'deg)' +
-            ' scale(' + (1 - a * 0.018).toFixed(4) + ')'
-          : 'translateX(' + (d * 11).toFixed(1) + 'px)' +
-            ' translateZ(' + (-a * 10).toFixed(1) + 'px)' +
-            ' rotateZ(' + (isActive || i === expanded ? 0 : rotSteps * 1.1).toFixed(2) + 'deg)' +
-            ' scale(' + (1 - a * 0.012).toFixed(4) + ')';
+    function paint() {
+      cards.forEach((c, i) => {
+        c.classList.toggle('is-active', i === active || i === expanded);
       });
+    }
+
+    function applyHeight() {
+      if (!stripped) return;
+      const box = expanded >= 0 ? heights.full : heights.compact;
+      grid.style.setProperty('--strip-h-box', Math.ceil(box) + 'px');
     }
 
     function setActive(i) {
-      // Hover is ignored while a card is open, per the expanded-state rule.
+      // Hover is ignored while a card is open: the open card stays open
+      // until it is closed or another one is clicked.
       if (expanded >= 0 || active === i) return;
       active = i;
-      if (decked) paintCards(tuning);
-    }
-
-    function teardown() {
-      grid.classList.remove('is-deck');
-      grid.style.removeProperty('--deck-h');
-      grid.style.removeProperty('--deck-card-w');
-      grid.style.removeProperty('--deck-card-h');
-      grid.style.removeProperty('--deck-card-h-full');
-      cards.forEach(c => {
-        c.style.transform = '';
-        c.style.zIndex = '';
-      });
-      decked = false;
-      open = false;
+      paint();
     }
 
     function setExpanded(i) {
       expanded = i;
+      if (i >= 0) active = i;
       cards.forEach((c, n) => c.classList.toggle('is-expanded', n === i));
       // Equal rows are right for a grid of compact cards, but an opened card
       // must be free to grow without dragging every other row with it.
       grid.classList.toggle('has-expanded', i >= 0);
-      if (i >= 0) open = true;   // fan out so the opened card is in the clear
-      applyDeckHeight();
-      if (decked) paintCards(tuning);
+      applyHeight();
+      paint();
     }
 
-    // Both card heights, measured in grid flow at the deck's card width so
+    // Both card heights, measured in grid flow at the strip's card width so
     // they are the real wrapped heights rather than the three-column ones.
     function measureHeights(cardW) {
       grid.style.gridTemplateColumns = 'repeat(auto-fit, ' + cardW + 'px)';
@@ -1048,115 +1023,82 @@
       return { compact: compact, full: Math.max(full, compact) };
     }
 
-    let heights = { compact: 0, full: 0 };
-
-    function applyDeckHeight() {
-      if (!decked) return;
-      const h = (expanded >= 0 ? heights.full : heights.compact) + 46;
-      grid.style.setProperty('--deck-h', Math.ceil(h) + 'px');
+    function teardown() {
+      grid.classList.remove('is-strip');
+      ['--strip-h', '--strip-h-full', '--strip-h-box',
+       '--strip-card-w', '--strip-slice', '--strip-media-h']
+        .forEach(p => grid.style.removeProperty(p));
+      cards.forEach(c => c.classList.remove('is-active'));
+      stripped = false;
     }
 
     function build() {
-      const t = deckTuning();
-
       teardown();
-      heights = measureHeights(t.card);
-      const tallest = heights.compact;
 
-      if (!tallest) return;
-
-      // Rotating a tall card about a low origin swings its corners out, so
-      // reserve a little vertical slack to keep it off the neighbours.
-      // Clamp the spread to what actually fits. A rotated card's corners
-      // reach past its centre offset by roughly height*sin(angle), so the
-      // fan is always wider than the spread alone.
-      //
-      // Divided by 8, not 4: offsets are measured from the active card, so
-      // when an end card is centred the other four sit on one side and the
-      // furthest is four steps out rather than two.
+      const n = cards.length;
+      const gaps = STRIP_GAP * (n - 1);
       const avail = grid.clientWidth;
-      const bleed = tallest * Math.sin(t.angle * Math.PI / 180);
-      const maxSpread = (avail - t.card - 2 * bleed) / 8;
-      tuning = {
-        card: t.card,
-        angle: t.angle,
-        yaw: t.yaw,
-        spread: Math.max(0, Math.min(t.spread, maxSpread))
-      };
 
-      grid.style.setProperty('--deck-card-w', t.card + 'px');
-      grid.style.setProperty('--deck-card-h', Math.ceil(heights.compact) + 'px');
-      grid.style.setProperty('--deck-card-h-full', Math.ceil(heights.full) + 'px');
-      grid.classList.add('is-deck');
-      decked = true;
-      applyDeckHeight();
-      paintCards(tuning);
-    }
+      // The open card gets its usual width unless the slices would be
+      // squeezed below their minimum, in which case it gives ground first.
+      const cardW = Math.min(
+        stripCardWidth(),
+        avail - gaps - (n - 1) * STRIP_SLICE_MIN
+      );
+      // Too tight for a readable open card: leave the plain grid in place.
+      if (cardW < 260) return;
 
-    function setOpen(v) {
-      if (!decked || open === v) return;
-      open = v;
-      paintCards(tuning);
-    }
+      heights = measureHeights(cardW);
+      if (!heights.compact) return;
 
-    const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      const slice = Math.max(
+        STRIP_SLICE_MIN,
+        Math.min(STRIP_SLICE_MAX, Math.floor((avail - cardW - gaps) / (n - 1)))
+      );
 
-    if (hoverCapable) {
-      grid.addEventListener('pointerenter', e => {
-        if (e.pointerType !== 'touch') setOpen(true);
-      });
-      grid.addEventListener('pointerleave', e => {
-        if (e.pointerType === 'touch') return;
-        if (grid.contains(document.activeElement)) return;
-        setOpen(false);
-      });
+      grid.style.setProperty('--strip-card-w', cardW + 'px');
+      grid.style.setProperty('--strip-slice', slice + 'px');
+      grid.style.setProperty('--strip-h', Math.ceil(heights.compact) + 'px');
+      grid.style.setProperty('--strip-h-full', Math.ceil(heights.full) + 'px');
+      // The shot's own 16/9 height at the open width. A collapsed card hands
+      // the whole card over to the shot instead, so no slice is left as a
+      // bare panel.
+      grid.style.setProperty('--strip-media-h',
+        Math.round((cardW - 2) * 9 / 16) + 'px');
+
+      grid.classList.add('is-strip');
+      stripped = true;
+      applyHeight();
+      paint();
     }
 
     cards.forEach((card, i) => {
-      // Hover brings a card to the centre. No pointerleave reset: the last
-      // card pointed at stays active, so the carousel never snaps back.
+      // Hover widens a card. No pointerleave reset: the last card pointed at
+      // stays open, exactly as in the reference.
       card.addEventListener('pointerenter', (e) => {
         if (e.pointerType === 'touch') return;
         setActive(i);
       });
 
+      // Keyboard equivalent, so tabbing does not leave the focused card as a
+      // 40px slice.
+      card.addEventListener('focusin', () => setActive(i));
+
       card.addEventListener('click', (e) => {
         if (e.target.closest('a')) return;   // the GitHub link still wins
         e.stopPropagation();
-        if (expanded === i) { setExpanded(-1); return; }
-        // Clicking the centred card opens it. Clicking any other card
-        // centres it first, which is also how touch reaches the centre
-        // without a hover to do it, and the card visibly moves so the tap
-        // reads as doing something. In grid mode there is no centre to move
-        // to, so a tap opens the card straight away.
-        if (!decked || active === i) setExpanded(i);
-        else setActive(i);
+        setExpanded(expanded === i ? -1 : i);
       });
     });
 
-    // Tap empty deck space to fan. Links keep working: this never
-    // preventDefaults.
-    grid.addEventListener('click', (e) => {
-      if (!decked) return;
-      if (e.target.closest('a')) return;
-      setOpen(!open);
-    });
     document.addEventListener('click', (e) => {
       if (grid.contains(e.target)) return;
       if (expanded >= 0) setExpanded(-1);
-      if (decked && open) setOpen(false);
-    });
-
-    // Keyboard: tabbing into any card opens the fan so the focused card is
-    // not buried under the stack.
-    grid.addEventListener('focusin', () => setOpen(true));
-    grid.addEventListener('focusout', (e) => {
-      if (!grid.contains(e.relatedTarget)) setOpen(false);
     });
 
     function sync() {
-      const wide = window.innerWidth >= DECK_MIN_WIDTH;
-      if (reduceMotion || !wide) { if (decked) teardown(); return; }
+      const wide = window.innerWidth >= STRIP_MIN_WIDTH;
+      if (reduceMotion || !wide) { if (stripped) teardown(); return; }
       build();
     }
 
@@ -1168,8 +1110,8 @@
     window.addEventListener('resize', requeue);
     // Belt and braces: the breakpoint itself, so crossing it is caught even
     // where a resize event is missed.
-    const deckMq = window.matchMedia('(min-width: ' + DECK_MIN_WIDTH + 'px)');
-    if (deckMq.addEventListener) deckMq.addEventListener('change', requeue);
+    const stripMq = window.matchMedia('(min-width: ' + STRIP_MIN_WIDTH + 'px)');
+    if (stripMq.addEventListener) stripMq.addEventListener('change', requeue);
   }
 
   /* =====================================================================
@@ -1437,7 +1379,7 @@
 
     setupHeroSwap();
     setupScroll();
-    setupProjectDeck();
+    setupProjectStrip();
     setupProjectFluid();
     setupCursorTrail();
     initHero3D();
