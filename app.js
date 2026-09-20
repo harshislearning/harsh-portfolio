@@ -1583,6 +1583,49 @@
   }
 
   /* =====================================================================
+     CONTACT — predictive arc background
+
+     A grid of square dots that swell and brighten along a parabolic curve,
+     with a shimmer crossing the lit band and the curve leaning toward the
+     pointer. Reference: Originkit "Predictive Arc"; the module itself has
+     the detail on what was kept and what was changed.
+
+     Same treatment as the fluid field: loaded only when the section is
+     near, and skipped under reduced motion or without WebGL.
+     ===================================================================== */
+  function setupArcBackground() {
+    const section = document.getElementById('contact');
+    if (!section || reduceMotion) return;
+    if (!webglAvailable()) return;
+
+    let started = false;
+    let tries = 0;
+
+    function start() {
+      if (started) return;
+      started = true;
+      import('./arc-bg.js')
+        .then(m => m.createArcBackground(section))
+        .catch(() => {
+          // A dropped module or CDN fetch should not cost the section its
+          // backdrop for the life of the page.
+          started = false;
+          if (++tries < 3) setTimeout(start, 2000 * tries);
+        });
+    }
+
+    // A screen's warning, so Three.js is fetched and the shader compiled
+    // before the section arrives rather than while it is being looked at.
+    const io = new IntersectionObserver(entries => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      io.disconnect();
+      start();
+    }, { rootMargin: '900px 0px' });
+
+    io.observe(section);
+  }
+
+  /* =====================================================================
      CURSOR IMAGE TRAIL
 
      Decorative only: a pointer-events:none layer behind everything from
@@ -1849,6 +1892,7 @@
     setupScroll();
     setupProjectStrip();
     setupFluidBackground('fluid-zone');
+    setupArcBackground();
     setupCursorTrail();
     initHero3D();
   }
