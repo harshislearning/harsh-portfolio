@@ -205,6 +205,9 @@
     });
 
     springRaf = activeSprings.size ? requestAnimationFrame(springFrame) : 0;
+    // A row that has finished opening or closing has changed the page's
+    // height, and everything below it has moved with it.
+    if (!springRaf) refreshScroll(120);
   }
 
   function springTo(state, target) {
@@ -425,7 +428,10 @@
   function scrollToId(id) {
     const target = document.getElementById(id);
     if (!target) return;
-    const top = Math.max(0, absTop(target) - (id === 'home' ? 0 : 78));
+    // Home is the top of the page, full stop. Measuring it lands wherever
+    // the pinned hero happens to be sitting, which is the end of its
+    // animation rather than the start of the page.
+    const top = id === 'home' ? 0 : Math.max(0, absTop(target) - 78);
     window.scrollTo({ top: top, behavior: reduceMotion ? 'auto' : 'smooth' });
   }
 
@@ -497,6 +503,11 @@
     const ScrollTrigger = window.ScrollTrigger;
     gsap.registerPlugin(ScrollTrigger);
 
+    // A phone's address bar sliding away is a viewport resize, and
+    // recomputing a pin in the middle of the scroll that caused it is how
+    // the hero ends up jumping. Width changes still refresh.
+    ScrollTrigger.config({ ignoreMobileResize: true });
+
     // Reveals: batched so a grid of cards staggers as one group rather than
     // firing one trigger per card.
     ScrollTrigger.batch(reveals, {
@@ -546,6 +557,20 @@
         }
       }
     });
+
+    // Everything that arrives after the first measurement moves the page
+    // under it: the web fonts, the project screenshots, the row collapsing
+    // into a strip. A trigger measured mid-change keeps those numbers, and
+    // for a pinned hero that is not a small error — a start measured
+    // against the wrong page puts the hero's pin past its end while the
+    // visitor is at the top of the page, which leaves the hero pushed a
+    // screen down and the top of the page empty. So: measure again once
+    // each of those has landed, and once more after everything has.
+    window.addEventListener('load', () => refreshScroll(300));
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => refreshScroll(300)).catch(() => {});
+    }
+    setTimeout(() => refreshScroll(0), 1400);
 
     // Metric counters.
     document.querySelectorAll('.metric dd').forEach(node => {
@@ -601,6 +626,27 @@
   // background. Whichever renderer asked last could be refused, which is
   // why the background sometimes only turned up after a reload or three.
   let webglProbe = null;
+
+  /* ---------------------------------------------------------------------
+     ScrollTrigger measures the page once and caches where every trigger
+     starts and ends. Anything that changes the page's height afterwards
+     leaves those numbers describing a page that no longer exists — and the
+     hero is pinned, so a stale measurement strands it: the pin holds its
+     end transform, the hero sits a screen further down than it should, and
+     the top of the page is an empty field of stars.
+
+     The projects row alone changes the section's height by well over a
+     thousand pixels when it becomes a strip, and again whenever a card is
+     opened. So every such change asks for a refresh here, debounced, since
+     several of them tend to land together.
+     --------------------------------------------------------------------- */
+  let refreshTimer = 0;
+
+  function refreshScroll(delay) {
+    if (!window.ScrollTrigger) return;
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => window.ScrollTrigger.refresh(), delay || 180);
+  }
 
   function webglAvailable() {
     if (webglProbe !== null) return webglProbe;
@@ -928,12 +974,24 @@
       swap.style.removeProperty('width');
 
       const base = parseFloat(getComputedStyle(aTitle).fontSize);
-      const avail = availableWidth();
+      // Two pixels in hand. Fitting the text to exactly the width available
+      // leaves nothing for rounding or for a font whose metrics settle a
+      // hair wider than they measured, and the box clips what it cannot
+      // hold — which is how the last letter of "Intern" went missing.
+      const avail = availableWidth() - 2;
       if (avail > swap.clientWidth) swap.style.width = avail + 'px';
 
       const natural = bTitle.scrollWidth;
       if (natural > avail && natural > 0) {
         bTitle.style.fontSize = Math.floor(base * (avail / natural) * 100) / 100 + 'px';
+      }
+
+      // Measure again and shave if it still does not fit: one pass is a
+      // prediction, and a proportional guess at a new font size is not
+      // exact. This one checks.
+      for (let i = 0; i < 3 && bTitle.scrollWidth > avail; i++) {
+        const now = parseFloat(getComputedStyle(bTitle).fontSize);
+        bTitle.style.fontSize = (Math.floor(now * 100) / 100 - 1) + 'px';
       }
     }
 
@@ -969,12 +1027,17 @@
 
     measure();
     window.addEventListener('load', measure);
+    // The fitting is measured in whatever font is on screen at the time. If
+    // that was the fallback, every measurement is wrong the moment the real
+    // one arrives.
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(measure).catch(() => {});
+    }
 
     let rt = 0;
-    window.addEventListener('resize', () => {
-      clearTimeout(rt);
-      rt = setTimeout(measure, 160);
-    });
+    const requeue = () => { clearTimeout(rt); rt = setTimeout(measure, 160); };
+    window.addEventListener('resize', requeue);
+    window.addEventListener('orientationchange', requeue);
 
     if (reduceMotion) { render(0); return; }
 
@@ -1083,6 +1146,10 @@
       // card has settled, take its real height and correct the row.
       clearTimeout(fitTimer);
       if (i >= 0) fitTimer = setTimeout(() => refit(i), 380);
+
+      // An opened card is several hundred pixels taller than a closed one.
+      // Measured once the row has finished growing, not during.
+      refreshScroll(560);
     }
 
     let fitTimer = 0;
@@ -1206,6 +1273,7 @@
       applyHeight();
       paint();
       showHints('strip');
+      refreshScroll();   // the section just lost most of its height
     }
 
     // Phone carousel: every card at full size in one draggable row, snapping
@@ -1234,6 +1302,7 @@
       paint();
       paintSwipe();
       showHints('swipe');
+      refreshScroll();   // the section just lost most of its height
     }
 
     /* ---- the hints under the row ---------------------------------------
