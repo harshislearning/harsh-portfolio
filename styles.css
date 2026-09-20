@@ -1401,6 +1401,33 @@ body.js .reveal.is-in {
   transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
 
+/* --- Skew-in ------------------------------------------------------------
+   Reference: Originkit "Skew In Text Effect". The block starts skewed and
+   pushed to the left at zero opacity and settles square as it scrolls in.
+   Its own start values are kept — 30deg of skew, 100px of travel, from
+   transparent — and it animates the whole text block, as the component
+   does, rather than per word or per letter.
+
+   The departure is the timing. The component springs over 167ms, which on
+   one word is a snap and on three lines of body copy is a flicker you read
+   as a glitch rather than as a movement; this is the same gesture with a
+   spring curve, given long enough to be seen.
+
+   Same body.js guard as .reveal: if the script never runs, the text is
+   simply there. The 100px of travel is held by overflow-x: clip on body,
+   so it cannot widen the page on a narrow screen. */
+.skew-in { opacity: 1; }
+body.js .skew-in {
+  opacity: 0;
+  transform: skewX(30deg) translateX(-100px);
+}
+body.js .skew-in.is-in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 420ms var(--ease),
+              transform 620ms cubic-bezier(0.22, 1.12, 0.36, 1);
+}
+
 /* ============================ RESPONSIVE ================================= */
 
 /* The hero keeps its split until 900px. A landscape tablet at 1024 has room
@@ -1523,7 +1550,8 @@ body.js .reveal.is-in {
     transition-duration: 0.001ms !important;
   }
 
-  body.js .reveal { opacity: 1; transform: none; }
+  body.js .reveal,
+  body.js .skew-in { opacity: 1; transform: none; }
   .orbit-ring-a { animation: none; }
   .hero-portrait { will-change: auto; }
 }

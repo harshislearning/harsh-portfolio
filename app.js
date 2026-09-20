@@ -507,7 +507,12 @@
   let heroProgress = 0;
 
   function setupScroll() {
-    const reveals = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+    // .skew-in rides the same batch: it is a different arrival, but it is
+    // still "add is-in when this scrolls into view", and putting it through
+    // one mechanism keeps it staggered with the elements beside it.
+    const reveals = Array.prototype.slice.call(
+      document.querySelectorAll('.reveal, .skew-in')
+    );
 
     if (reduceMotion || !window.gsap || !window.ScrollTrigger) {
       reveals.forEach(n => n.classList.add('is-in'));
