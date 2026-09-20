@@ -26,7 +26,7 @@
     projects: [
       {
         title: 'HistoScope — Lung & Colon Cancer Histopathology Classifier',
-        category: 'Deep Learning',
+        category: 'DL',
         tagline: 'Classifies H&E histopathology tiles into five lung and colon diagnostic classes at 98.93% test accuracy.',
         description: 'A MobileNetV2 transfer-learning model that separates benign tissue from adenocarcinoma and squamous cell carcinoma across lung and colon slides — 0.9998 ROC-AUC, 1.000 malignancy sensitivity, and 97.33% accuracy held under stain shift, served through a Streamlit app that returns the full probability distribution for every tile.',
         image: 'uploads/histoscope.webp',
