@@ -1614,6 +1614,88 @@
   }
 
   /* =====================================================================
+     EXPERIENCE → PROJECTS HANDOFF
+
+     Two sections with backdrops of their own used to meet on a flat dark
+     band: the aurora stopped, nothing happened, the fluid field started.
+     This carries the light across the boundary instead.
+
+     One scrubbed crossing, from the moment the boundary appears at the
+     foot of the screen to the moment it leaves the top. A pool of violet
+     centred on the seam swells and dissolves while the aurora above it
+     sinks and dims, so the colour drains downward out of Experience and
+     into Projects rather than being cut off by the section edge.
+
+     Scrub means it is the same effect in reverse on the way back up: the
+     glow blooms again and the aurora rises and brightens as Experience
+     returns. Nothing here is a one-shot, so scrolling up is not a
+     different path — it is the same one, run backwards.
+     ===================================================================== */
+  const SEAM = {
+    peak: 0.45,   // where in the crossing the glow is at full strength
+    lift: 90,     // px the pool drifts up across the crossing (parallax)
+    grow: 0.4,    // how much it spreads between rest and full
+    auroraSink: 44,
+    auroraDim: 0.7
+  };
+
+  function setupSectionSeam() {
+    const projects = document.getElementById('projects');
+    const experience = document.getElementById('experience');
+    if (!projects || !experience || !projects.parentNode) return;
+
+    const seam = el('div', { class: 'seam', 'aria-hidden': 'true' });
+    seam.appendChild(el('span', { class: 'seam-glow' }));
+    projects.parentNode.insertBefore(seam, projects);
+
+    const aurora = experience.querySelector('.aurora');
+
+    // Reduced motion keeps the light and drops the movement: a steady pool
+    // at the boundary, which is still a softer join than a hard edge.
+    if (reduceMotion || !window.gsap || !window.ScrollTrigger) {
+      seam.style.setProperty('--seam-opacity', '0.5');
+      seam.style.setProperty('--seam-scale', '1');
+      return;
+    }
+
+    function paint(p) {
+      // Rise and fall across the crossing, peaking just before the middle
+      // so the pool fades out slowly on the Projects side and some violet
+      // is still in the air under the heading.
+      const raw = p < SEAM.peak
+        ? p / SEAM.peak
+        : 1 - (p - SEAM.peak) / (1 - SEAM.peak);
+      const b = Math.min(1, Math.max(0, raw));
+      const s = b * b * (3 - 2 * b);   // smoothstep, so there are no corners
+
+      seam.style.setProperty('--seam-opacity', s.toFixed(3));
+      seam.style.setProperty('--seam-scale', (1 - SEAM.grow + s * SEAM.grow).toFixed(3));
+      // Drifting up slower than the page reads as depth rather than as a
+      // second thing scrolling.
+      seam.style.setProperty('--seam-y', (-p * SEAM.lift).toFixed(1) + 'px');
+
+      if (aurora) {
+        aurora.style.opacity = (1 - p * SEAM.auroraDim).toFixed(3);
+        aurora.style.transform =
+          'translate3d(0,' + (p * SEAM.auroraSink).toFixed(1) + 'px,0)';
+      }
+    }
+
+    const st = window.ScrollTrigger.create({
+      trigger: seam,
+      start: 'top bottom',
+      end: 'top top',
+      scrub: true,
+      invalidateOnRefresh: true,
+      onUpdate: self => paint(self.progress)
+    });
+
+    // A reload partway down the page starts mid-crossing, and onUpdate only
+    // fires once something scrolls.
+    paint(st.progress);
+  }
+
+  /* =====================================================================
      CURSOR IMAGE TRAIL
 
      Decorative only: a pointer-events:none layer behind everything from
@@ -1881,6 +1963,9 @@
     setupProjectStrip();
     setupProjectFluid();
     setupExperienceAurora();
+    // After the aurora: the handoff dims and sinks that layer, so it has to
+    // exist by the time this looks for it.
+    setupSectionSeam();
     setupCursorTrail();
     initHero3D();
   }
