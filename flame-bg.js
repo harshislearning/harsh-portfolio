@@ -1,26 +1,26 @@
 /**
- * PREDICTIVE ARC BACKGROUND
+ * FLAME FIELD BACKGROUND
  *
- * A field of square dots on a fixed grid. Dots grow and brighten as they
- * approach a parabolic curve, a slow diagonal shimmer crosses the lit band,
- * and the curve bends toward the pointer.
+ * A bed of square dots along the foot of a section, drawn as flames: the
+ * tongues rise and fall along the width, cells of heat travel upward
+ * through them, and the flame leans toward the pointer.
  *
  * Reference: Originkit "Predictive Arc". That component is React and ships
- * from a registry behind an API key, so this is the technique rebuilt from
- * its documented behaviour rather than a port of its source. What is kept
- * is the component's own shape: one fragment shader evaluating the whole
- * field per cell, a single intensity driving both a dot's square side and
- * its colour so the band gets soft shoulders with no blur pass, crossing
- * sine and cosine waves multiplied into that intensity, a Gaussian around
- * the cursor's x pulling the curve toward the cursor's y, eased in and out
- * so it never snaps on enter or leave, the wave phase measured in CSS
+ * from a registry behind an API key, so this is its technique rebuilt in
+ * vanilla against the Three.js the page already loads rather than a port
+ * of its source. What is kept is the way it draws: one fragment shader
+ * evaluating the whole field per cell, a single intensity driving both a
+ * dot's square side and its colour so the field gets soft shoulders with
+ * no blur pass, crossing waves multiplied into that intensity, a Gaussian
+ * around the cursor's x pulling the field toward the cursor's y and eased
+ * in and out so it never snaps on enter or leave, phase measured in CSS
  * pixels with devicePixelRatio capped at 2, and the grid pitch taken from
- * the short edge. Its defaults are kept too: density 78, dot size 137%,
- * speed 100, pointer stretch 236 and travel 34.
+ * the short edge.
  *
- * Two departures. The palette is this page's violet rather than the
- * component's red, and nothing opaque is painted behind the field — the
- * canvas stays transparent so the section keeps its own background.
+ * What is changed: the component's parabolic arc is replaced by a flame
+ * field, and it is drawn at a much larger pitch. The palette is this
+ * page's violet rather than the component's red, and nothing opaque is
+ * painted behind the field, so the section keeps its own background.
  */
 
 const VERT = `
@@ -39,79 +39,100 @@ const FRAG = `
   uniform float uTime;
   uniform float uPitch;     // grid spacing, CSS px
   uniform float uDotScale;  // dot side as a multiple of the pitch
-  uniform vec4  uArch;      // x: vertex x 0..1, y: vertex y 0..1, z: rise, w: band px
-  uniform float uTails;     // how fast the band fades toward the edges
+  uniform float uHeight;    // how far up the section the tallest tongue reaches
+  uniform float uFloor;     // fraction of a tongue that burns at full strength
   uniform vec3  uPointer;   // x, y in CSS px (origin bottom-left), z: eased 0..1
-  uniform vec2  uPointerFalloff;  // stretch px, travel px
+  uniform vec2  uPointerFalloff;  // stretch px, lift px
   uniform vec3  uBase;
   uniform vec3  uAccent;
   uniform vec3  uHighlight;
   uniform float uOpacity;
 
   void main() {
-    // Everything is measured in CSS pixels, so the grid and the shimmer are
-    // the same size on a retina screen as on a plain one.
+    // Measured in CSS pixels, so the grid and the flicker are the same size
+    // on a retina screen as on a plain one.
     vec2 cssPx  = gl_FragCoord.xy / uDpr;
     vec2 cell   = floor(cssPx / uPitch);
     vec2 centre = (cell + 0.5) * uPitch;
     vec2 local  = cssPx - centre;
 
-    // The curve: a parabola with its low point at uArch.xy, rising by
-    // uArch.z of the height by the time it reaches the left and right edges.
-    float nx = (centre.x - uArch.x * uSize.x) / uSize.x;
-    float curveY = uArch.y * uSize.y + uArch.z * nx * nx * uSize.y;
+    float x = centre.x / uSize.x;
 
-    // The pointer pulls the curve toward itself, hardest directly under the
-    // cursor and falling away over uPointerFalloff.x. The pull is capped at
-    // uPointerFalloff.y so the curve leans rather than chases, and uPointer.z
-    // eases the whole thing in and out.
+    // The tongues. Three waves at different rates, drifting in opposite
+    // directions so the tips never settle into a repeating shape.
+    float tongue = 0.50
+      + 0.26 * sin(x *  5.7 + uTime * 0.75)
+      + 0.16 * sin(x * 11.9 - uTime * 1.15)
+      + 0.12 * sin(x * 21.3 + uTime * 1.65);
+
+    float topPx = uHeight * uSize.y * tongue;
+
+    // The pointer lifts the flame toward itself, hardest directly under the
+    // cursor and falling away over uPointerFalloff.x. Capped at
+    // uPointerFalloff.y so the flame leans rather than chases, and
+    // uPointer.z eases the whole thing in and out.
     float d    = (centre.x - uPointer.x) / uPointerFalloff.x;
     float near = exp(-d * d);
-    float pull = clamp(uPointer.y - curveY, -uPointerFalloff.y, uPointerFalloff.y);
-    curveY += pull * near * uPointer.z;
+    float lift = clamp(uPointer.y - topPx, -uPointerFalloff.y, uPointerFalloff.y);
+    topPx += lift * near * uPointer.z;
+    topPx = max(topPx, uPitch);
 
-    // Distance from the curve, as a Gaussian across the band's thickness.
-    float dy   = (centre.y - curveY) / uArch.w;
-    float band = exp(-dy * dy);
-    band *= exp(-uTails * nx * nx * 4.0);
+    // Solid at the floor, thinning out to nothing at the tip. The power
+    // curve matters: a straight ramp keeps most of a tongue near full
+    // strength, which fills the section with big dots instead of leaving
+    // the dark between them that makes it read as fire.
+    float body = 1.0 - smoothstep(topPx * uFloor, topPx, centre.y);
+    body = pow(body, 1.15);
+    if (body <= 0.0) discard;
 
-    // Crossing waves multiplied together, which sends the shimmer through
-    // the band diagonally rather than straight along it.
-    float ph   = (centre.x * 0.55 + centre.y * 0.38) / uPitch;
-    float s    = sin(ph * 0.42 - uTime * 1.10);
-    float c    = cos(ph * 0.27 + uTime * 0.70);
-    float shim = 0.5 + 0.5 * s * c;
+    // Cells of heat travelling upward through the body. The inner sine
+    // shears the bands along x so they climb in tongues rather than in one
+    // flat sheet, and the swing is wide enough to put gaps between them.
+    float rise  = sin(centre.y / uPitch * 1.25 - uTime * 2.40
+                      + sin(x * 8.0 + uTime * 0.50) * 1.60);
+    float flick = 0.26 + 0.74 * (0.5 + 0.5 * rise);
 
-    float intensity = band * mix(0.42, 1.0, shim);
-    if (intensity < 0.004) discard;
+    // And a slow variation along the width, so the rows break into separate
+    // tongues instead of burning as one flat bar across the section.
+    float column = 0.52 + 0.48 * (0.5 + 0.5 *
+      sin(x * 17.0 + uTime * 0.25 + sin(x * 6.3 - uTime * 0.45) * 2.20));
+
+    float intensity = body * flick * column;
+    if (intensity < 0.006) discard;
 
     // One intensity, two jobs: the square's side and its colour. That is
-    // what gives the band soft shoulders without a blur pass.
+    // what gives the field soft shoulders without a blur pass.
     // "halfSide", not "half": half is a reserved word in GLSL ES.
     float halfSide = intensity * uPitch * 0.5 * uDotScale;
     float aa = 0.5 / uDpr;
     float inside = 1.0 - smoothstep(halfSide - aa, halfSide + aa, max(abs(local.x), abs(local.y)));
     if (inside <= 0.0) discard;
 
+    // Hottest at the floor, cooling toward the tips.
     vec3 col = mix(uBase, uAccent, smoothstep(0.0, 0.55, intensity));
-    col = mix(col, uHighlight, smoothstep(0.62, 1.0, intensity));
+    col = mix(col, uHighlight, smoothstep(0.78, 1.0, intensity));
 
-    gl_FragColor = vec4(col, inside * mix(0.5, 1.0, intensity) * uOpacity);
+    gl_FragColor = vec4(col, inside * mix(0.45, 1.0, intensity) * uOpacity);
   }
 `;
 
-export async function createArcBackground(container, options) {
+export async function createFlameBackground(container, options) {
   const opts = Object.assign({
     // The component's red swapped for this page's violet.
-    baseColor: '#3B2A7A',
+    baseColor: '#3A2280',
     accentColor: '#8B5CF6',
-    highlight: '#D9CCFF',
-    density: 78,      // cells across the short edge
-    dotSize: 137,     // dot side, % of the pitch
-    speed: 100,       // shimmer travel; 0 freezes it
-    arch: { x: 0.5, y: 0.34, rise: 1.15, band: 0.085, tails: 1.4 },
-    pointer: { enabled: true, stretch: 236, travel: 34 },
-    opacity: 0.85
+    highlight: '#E4DAFF',
+    density: 26,      // cells across the short edge — the component's 78 is
+                      // a fine mist at this size; this is the same field
+                      // drawn big enough to read as flame.
+    dotSize: 110,     // dot side, % of the pitch. Well under the component's
+                      // 137, where the dots overlap their cells and the
+                      // flame closes up into a sheet.
+    speed: 100,       // flicker and travel rate; 0 freezes it
+    height: 0.88,     // the tallest tongue, as a fraction of the section
+    floorRatio: 0.05, // how much of a tongue burns at full strength
+    pointer: { enabled: true, stretch: 236, lift: 150 },
+    opacity: 0.8
   }, options || {});
 
   const THREE = await import('https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js');
@@ -139,10 +160,10 @@ export async function createArcBackground(container, options) {
       uTime: { value: 0 },
       uPitch: { value: 10 },
       uDotScale: { value: opts.dotSize / 100 },
-      uArch: { value: new THREE.Vector4(opts.arch.x, opts.arch.y, opts.arch.rise, 20) },
-      uTails: { value: opts.arch.tails },
+      uHeight: { value: opts.height },
+      uFloor: { value: opts.floorRatio },
       uPointer: { value: new THREE.Vector3(0, 0, 0) },
-      uPointerFalloff: { value: new THREE.Vector2(opts.pointer.stretch, opts.pointer.travel) },
+      uPointerFalloff: { value: new THREE.Vector2(opts.pointer.stretch, opts.pointer.lift) },
       uBase: { value: new THREE.Color(opts.baseColor) },
       uAccent: { value: new THREE.Color(opts.accentColor) },
       uHighlight: { value: new THREE.Color(opts.highlight) },
@@ -157,7 +178,7 @@ export async function createArcBackground(container, options) {
   scene.add(quad);
 
   /* ---- sizing -------------------------------------------------------- */
-  let cssW = 0, cssH = 0;
+  let cssW = 0;
 
   function resize() {
     const w = container.clientWidth;
@@ -172,16 +193,14 @@ export async function createArcBackground(container, options) {
     renderer.setPixelRatio(dpr);
     renderer.setSize(w, h, false);
 
-    cssW = w; cssH = h;
-    const short = Math.min(w, h);
+    cssW = w;
     // Pitch from the short edge, so the grid keeps its spacing whichever way
     // the section is shaped.
-    const pitch = Math.max(6, short / opts.density);
+    const pitch = Math.max(9, Math.min(w, h) / opts.density);
 
     material.uniforms.uSize.value.set(w, h);
     material.uniforms.uDpr.value = dpr;
     material.uniforms.uPitch.value = pitch;
-    material.uniforms.uArch.value.w = Math.max(8, short * opts.arch.band);
   }
 
   resize();
@@ -197,7 +216,7 @@ export async function createArcBackground(container, options) {
     pointer.x = clientX - r.left;
     pointer.y = r.height - (clientY - r.top);
     // Inside the section, or close enough that leaving eases out instead of
-    // dropping the bend on the boundary.
+    // dropping the lean on the boundary.
     const inside = pointer.x > -80 && pointer.x < r.width + 80 &&
                    pointer.y > -80 && pointer.y < r.height + 80;
     pointer.want = inside ? 1 : 0;

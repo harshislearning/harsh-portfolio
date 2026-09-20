@@ -1583,17 +1583,18 @@
   }
 
   /* =====================================================================
-     CONTACT — predictive arc background
+     CONTACT — flame field background
 
-     A grid of square dots that swell and brighten along a parabolic curve,
-     with a shimmer crossing the lit band and the curve leaning toward the
-     pointer. Reference: Originkit "Predictive Arc"; the module itself has
-     the detail on what was kept and what was changed.
+     A bed of big square dots burning up the foot of the section: tongues
+     rising and falling along the width, cells of heat travelling upward
+     through them, and the flame leaning toward the pointer. Reference:
+     Originkit "Predictive Arc" for the way it is drawn; the module itself
+     has the detail on what was kept and what was changed.
 
      Same treatment as the fluid field: loaded only when the section is
      near, and skipped under reduced motion or without WebGL.
      ===================================================================== */
-  function setupArcBackground() {
+  function setupFlameBackground() {
     const section = document.getElementById('contact');
     if (!section || reduceMotion) return;
     if (!webglAvailable()) return;
@@ -1604,8 +1605,8 @@
     function start() {
       if (started) return;
       started = true;
-      import('./arc-bg.js')
-        .then(m => m.createArcBackground(section))
+      import('./flame-bg.js')
+        .then(m => m.createFlameBackground(section))
         .catch(() => {
           // A dropped module or CDN fetch should not cost the section its
           // backdrop for the life of the page.
@@ -1892,7 +1893,7 @@
     setupScroll();
     setupProjectStrip();
     setupFluidBackground('fluid-zone');
-    setupArcBackground();
+    setupFlameBackground();
     setupCursorTrail();
     initHero3D();
   }
