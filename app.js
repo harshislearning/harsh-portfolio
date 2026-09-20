@@ -594,12 +594,29 @@
      the shape of the work on this page, not decoration for its own sake.
      Three layers — ambient drift, pointer parallax, scroll dispersion.
      ===================================================================== */
+  // Probed once, and the probe hands its context straight back. Browsers cap
+  // how many WebGL contexts can be live at a time, and each probe was
+  // holding one open for the life of the page — two probes for the two
+  // contexts this page actually wants, the hero and the projects
+  // background. Whichever renderer asked last could be refused, which is
+  // why the background sometimes only turned up after a reload or three.
+  let webglProbe = null;
+
   function webglAvailable() {
+    if (webglProbe !== null) return webglProbe;
     try {
       const c = document.createElement('canvas');
-      return !!(window.WebGLRenderingContext &&
-                (c.getContext('webgl') || c.getContext('experimental-webgl')));
-    } catch (e) { return false; }
+      const gl = window.WebGLRenderingContext &&
+                 (c.getContext('webgl') || c.getContext('experimental-webgl'));
+      if (gl) {
+        const lose = gl.getExtension('WEBGL_lose_context');
+        if (lose) lose.loseContext();
+      }
+      webglProbe = !!gl;
+    } catch (e) {
+      webglProbe = false;
+    }
+    return webglProbe;
   }
 
   function dotTexture(THREE) {
@@ -784,35 +801,78 @@
   function setupProjectFluid() {
     const section = document.getElementById('projects');
     if (!section || reduceMotion) return;
-    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-    if (window.innerWidth < 900) return;
     if (!webglAvailable()) return;
 
+    // Phones carry the same background, on a cheaper budget: a coarser
+    // simulation and fewer pressure iterations. It is the section's
+    // backdrop, so leaving it out on a phone made the section look like a
+    // different page, and it only ever ran there by accident — the width
+    // was read once, at load, so narrowing a window kept it while loading
+    // narrow lost it until the next reload from a wider window.
+    function settings() {
+      const small = window.innerWidth < 900;
+      return {
+        // The site's own violet ramp rather than the component's pink
+        // default, so it reads as this page's background.
+        palette: ['#08070C', '#140E2B', '#33207A', '#6D42E0', '#A78BFA'],
+        pixelSize: small ? 12 : 16,
+        resolution: small ? 0.24 : 0.32,
+        pressureIterations: small ? 12 : 18,
+        mouseForce: 7,
+        cursorSize: small ? 90 : 120,
+        // Restrained on purpose: this sits behind the section heading and
+        // the cards, so it reads as a tint that follows the pointer rather
+        // than a field competing with the content.
+        intensity: 0.5,
+        dissipation: 0.955,
+        opacity: 0.34
+      };
+    }
+
     let started = false;
-    const io = new IntersectionObserver(entries => {
-      if (!entries[0].isIntersecting || started) return;
+    let tries = 0;
+
+    function start() {
+      if (started) return;
       started = true;
-      io.disconnect();
       import('./fluid-bg.js')
-        .then(m => m.createFluidBackground(section, {
-          // The site's own violet ramp rather than the component's pink
-          // default, so it reads as this page's background.
-          palette: ['#08070C', '#140E2B', '#33207A', '#6D42E0', '#A78BFA'],
-          pixelSize: 16,
-          resolution: 0.32,
-          mouseForce: 7,
-          cursorSize: 120,
-          // Restrained on purpose: this sits behind the section heading and
-          // the cards, so it reads as a tint that follows the cursor rather
-          // than a field competing with the content.
-          intensity: 0.5,
-          dissipation: 0.955,
-          opacity: 0.34
-        }))
-        .catch(() => { /* CDN unreachable: the section keeps its flat bg */ });
-    }, { rootMargin: '200px 0px' });
+        .then(m => m.createFluidBackground(section, settings()))
+        .catch(() => {
+          // A dropped module or CDN fetch used to end it for good, and a
+          // reload was the only way back. Two retries cover the flake;
+          // after that the section keeps its flat background.
+          started = false;
+          if (++tries < 3) setTimeout(start, 2000 * tries);
+        });
+    }
+
+    // A screen's warning, so the module and Three.js are fetched and the
+    // shaders compiled before the section arrives rather than while the
+    // visitor is already looking at it.
+    //
+    // entries.some, not entries[0]: a callback can carry several records,
+    // and reading only the first meant an arriving section could be
+    // reported behind a stale record and missed. The observer then never
+    // fired again, because by that point nothing was crossing any more —
+    // which is what left the background out on some loads and not others.
+    const io = new IntersectionObserver(entries => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      io.disconnect();
+      start();
+    }, { rootMargin: '900px 0px' });
 
     io.observe(section);
+
+    // And a backstop, so the background never depends on that callback
+    // landing at all. The module pauses its own loop whenever the section
+    // is off screen, and Three.js is already being fetched for the hero,
+    // so starting early costs nothing either way.
+    const kick = () => { io.disconnect(); start(); };
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(kick, { timeout: 3000 });
+    } else {
+      setTimeout(kick, 2200);
+    }
   }
 
   /* =====================================================================
@@ -1111,6 +1171,7 @@
       stripped = false;
       swiping = false;
       swipeMetrics = null;
+      hideHints();
     }
 
     function build() {
@@ -1171,6 +1232,51 @@
       applyHeight();
       paint();
       paintSwipe();
+      showHints();
+    }
+
+    /* ---- the two hints under the carousel ------------------------------
+       A row of cards that must be tapped and dragged says none of that by
+       itself, so both gestures are spelled out. Each one also does what it
+       says when pressed: no label here points at something you cannot
+       simply press instead. */
+    let hints = null;
+
+    function showHints() {
+      if (hints) { hints.hidden = false; return; }
+
+      hints = el('div', { class: 'proj-hints' });
+
+      const tapBtn = el('button', { type: 'button', class: 'proj-hint' },
+        '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+        '<circle cx="8" cy="8" r="2.4"/><path d="M3.6 3.6a6.2 6.2 0 0 0 0 8.8M12.4 3.6a6.2 6.2 0 0 1 0 8.8"/>' +
+        '</svg><span>Tap a card for details</span>');
+
+      const swipeBtn = el('button', { type: 'button', class: 'proj-hint' },
+        '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+        '<path d="M1.6 8h12.8M4.6 4.8 1.4 8l3.2 3.2M11.4 4.8 14.6 8l-3.2 3.2"/>' +
+        '</svg><span>Swipe for more projects</span>');
+
+      tapBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setExpanded(expanded >= 0 ? -1 : active);
+      });
+
+      swipeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (expanded >= 0) setExpanded(-1);
+        active = (active + 1) % cards.length;
+        paint();
+        scrollActiveIntoView(true);
+      });
+
+      hints.appendChild(tapBtn);
+      hints.appendChild(swipeBtn);
+      grid.parentNode.insertBefore(hints, grid.nextSibling);
+    }
+
+    function hideHints() {
+      if (hints) hints.hidden = true;
     }
 
     // Each card's swing is read from where it sits relative to the middle of

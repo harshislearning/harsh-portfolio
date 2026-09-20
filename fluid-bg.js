@@ -167,7 +167,12 @@ export async function createFluidBackground(container, options) {
 
   const canvas = renderer.domElement;
   canvas.setAttribute('aria-hidden', 'true');
-  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none';
+  // Faded in on the first frame it actually draws. The module and Three.js
+  // may land a moment after the section does, and a backdrop that arrives
+  // by fading reads as part of the design rather than as one that was
+  // missing and then popped in.
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;' +
+    'display:block;pointer-events:none;opacity:0;transition:opacity 700ms ease';
   container.insertBefore(canvas, container.firstChild);
 
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -271,6 +276,10 @@ export async function createFluidBackground(container, options) {
   function resize() {
     const w = container.clientWidth;
     const h = container.clientHeight;
+    // Nothing to size to yet. The observers below call back the moment the
+    // container has a box, so this is a wait rather than a dead end: the
+    // buffers below would otherwise never be allocated and the loop would
+    // idle for the life of the page.
     if (!w || !h) return;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -341,6 +350,7 @@ export async function createFluidBackground(container, options) {
   /* ---- loop ---------------------------------------------------------- */
   let raf = 0;
   let visible = false;
+  let lost = false;   // set while the GPU context is gone (see below)
   let hidden = document.hidden;
   let prev = performance.now();
   let elapsed = 0;
@@ -367,7 +377,7 @@ export async function createFluidBackground(container, options) {
     const now = performance.now();
     const dt = Math.min((now - prev) / 1000, 1 / 30);
     prev = now;
-    if (!visible || hidden || !velA) return;
+    if (!visible || hidden || lost || !velA) return;
     elapsed += dt;
 
     // advect
@@ -413,12 +423,37 @@ export async function createFluidBackground(container, options) {
     mOut.uniforms.uVelocity.value = velA.texture;
     mOut.uniforms.uTime.value = elapsed;
     blit(mOut, null);
+
+    if (canvas.style.opacity !== '1') canvas.style.opacity = '1';
   }
 
   frame();
 
   const onResize = () => resize();
   window.addEventListener('resize', onResize);
+
+  // The section is not a fixed height: opening a project card grows it by
+  // several hundred pixels, and the canvas stretches with it. Without this
+  // the drawing buffer would keep the old size and the picture would be
+  // stretched to fit. It also covers the case where the container had no
+  // box at all when the first resize ran.
+  let ro = null;
+  if (window.ResizeObserver) {
+    ro = new ResizeObserver(() => resize());
+    ro.observe(container);
+  }
+
+  // A lost context leaves every buffer invalid. Hold the loop until the
+  // browser hands the context back, then rebuild them — losing the
+  // background until a reload is exactly the failure this is here to end.
+  const onLost = (e) => { e.preventDefault(); lost = true; };
+  const onRestored = () => {
+    lost = false;
+    simW = simH = 1;   // force the buffers to be reallocated
+    resize();
+  };
+  canvas.addEventListener('webglcontextlost', onLost);
+  canvas.addEventListener('webglcontextrestored', onRestored);
 
   return {
     canvas: canvas,
@@ -431,6 +466,9 @@ export async function createFluidBackground(container, options) {
       window.removeEventListener('touchstart', onTouch);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVisibility);
+      canvas.removeEventListener('webglcontextlost', onLost);
+      canvas.removeEventListener('webglcontextrestored', onRestored);
+      if (ro) ro.disconnect();
       disposeTargets();
       paletteTex.dispose();
       [mAdvect, mSplat, mDiv, mPrs, mGrad, mOut].forEach(m => m.dispose());
