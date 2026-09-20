@@ -154,6 +154,19 @@ a { color: inherit; text-decoration: none; }
   color: var(--accent);
 }
 
+/* The eyebrow treatment carried up to heading size. The tracking is in em
+   so it opens up with the type instead of staying a hairline gap, and the
+   right side gets that last letter-space back as padding — tracking is
+   added after every letter, including the final one, which otherwise
+   leaves a centred line sitting slightly left. */
+.eyebrow-xl {
+  margin-bottom: 0;
+  font-size: clamp(26px, 4vw, 44px);
+  letter-spacing: 0.2em;
+  line-height: 1.15;
+  padding-left: 0.2em;
+}
+
 .sec-head { text-align: center; margin-bottom: clamp(36px, 5vw, 58px); }
 
 .sec-sub {
