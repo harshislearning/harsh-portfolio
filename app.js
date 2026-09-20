@@ -937,27 +937,23 @@
 
      A click, and only a click, opens the full card.
 
-     The same strip runs on phones. Six cards cannot sit side by side inside
-     a phone without squeezing the open one past readability, so there the
-     row becomes a horizontal rail: it scrolls, and the widened card is
-     scrolled into view for you. With no pointer to hover, the first tap
-     widens a card and the second opens it — the reference's click does the
-     same job.
+     Phones get a swipe carousel instead. Six cards cannot collapse and
+     expand side by side in a phone's width, and a widening card there gives
+     no way back to the one you just left. So on a phone every card keeps
+     its full size, laid out in one horizontal row you drag left and right,
+     snapping card to card. A tap opens the card, as everywhere else.
      ===================================================================== */
   const STRIP_GAP = 6;          // matches the reference's gap-1
+  const SWIPE_GAP = 12;
   const STRIP_SLICE_MIN = 40;   // narrowest a collapsed card may get
   const STRIP_SLICE_MAX = 96;
-  const STRIP_RAIL_SLICE = 46;  // slice width once the row has to scroll
 
-  function stripCardWidth(avail) {
+  function stripCardWidth() {
     const w = window.innerWidth;
     if (w >= 1200) return 360;
     if (w >= 1000) return 330;
     if (w >= 820) return 318;
-    if (w >= 680) return 300;
-    // Phone: leave a slice of the next card showing, so the row reads as a
-    // rail that carries on rather than a lone card.
-    return Math.max(230, Math.min(300, Math.round(avail * 0.78)));
+    return 300;
   }
 
   function setupProjectStrip() {
@@ -967,7 +963,7 @@
     if (!cards.length) return;
 
     let stripped = false;
-    let railed = false; // row scrolls instead of fitting (phones)
+    let swiping = false; // phone carousel: full-size cards, dragged sideways
     let active = 0;     // the widened card; hover moves it
     let expanded = -1;  // the opened card; only a click sets this
     let heights = { compact: 0, full: 0 };
@@ -975,13 +971,15 @@
     let lastPointer = 'mouse';
 
     function paint() {
+      // Only the strip has a widened card. On the carousel every card is
+      // already full size, so none of them is singled out.
       cards.forEach((c, i) => {
-        c.classList.toggle('is-active', i === active || i === expanded);
+        c.classList.toggle('is-active', !swiping && (i === active || i === expanded));
       });
     }
 
     function applyHeight() {
-      if (!stripped) return;
+      if (!stripped && !swiping) return;
       const box = expanded >= 0 ? heights.each[expanded] : heights.compact;
       // The opened card's own height, so the row grows by exactly what that
       // card needs.
@@ -1019,7 +1017,7 @@
 
     let fitTimer = 0;
     function refit(i) {
-      if (!stripped || expanded !== i) return;
+      if ((!stripped && !swiping) || expanded !== i) return;
       const card = cards[i];
       const shot = card.querySelector('.proj-media');
       const body = card.querySelector('.proj-body');
@@ -1034,9 +1032,7 @@
     }
 
     // Both card heights, measured in grid flow so they are the real wrapped
-    // heights rather than the three-column ones. Compact is measured at the
-    // widened width, full at the opened width — on a phone rail the two
-    // differ, since an opened card takes the whole rail.
+    // heights rather than the three-column ones.
     function measureHeights(cardW, openW) {
       const wasExpanded = cards.map(c => c.classList.contains('is-expanded'));
       grid.style.justifyContent = 'center';
@@ -1068,43 +1064,41 @@
       return { compact: compact, each: each };
     }
 
-    // On a rail, the card the strip is showing has to be brought into view:
-    // there is no pointer, so nothing else would move the scroll.
-    //
-    // Run twice. The widths are still animating on the first pass, so the
-    // card's offset is the one it is leaving, not the one it is landing on;
-    // the second pass, after the widening has settled, corrects it.
+    // The strip widens a card in place, so nothing has to scroll. The
+    // carousel does: an opened card is brought to the middle of the view.
     let scrollTimer = 0;
     function scrollActiveIntoView(smooth) {
-      if (!stripped || !railed) return;
+      if (!swiping) return;
       const go = () => {
         const card = cards[expanded >= 0 ? expanded : active];
-        if (!card || !railed) return;
-        // Measured against the rail itself. offsetLeft is no use here: the
-        // offset parent is the section wrapper, not the scroller, so it
+        if (!card || !swiping) return;
+        // Measured against the carousel itself. offsetLeft is no use here:
+        // the offset parent is the section wrapper, not the scroller, so it
         // carries the wrapper's own inset.
-        const delta = card.getBoundingClientRect().left -
-                      grid.getBoundingClientRect().left;
+        const cardBox = card.getBoundingClientRect();
+        const box = grid.getBoundingClientRect();
+        const delta = (cardBox.left - box.left) -
+                      (box.width - cardBox.width) / 2;
         grid.scrollTo({
-          left: Math.max(0, grid.scrollLeft + delta - (expanded >= 0 ? 0 : STRIP_GAP)),
+          left: Math.max(0, grid.scrollLeft + delta),
           behavior: smooth && !reduceMotion ? 'smooth' : 'auto'
         });
       };
       go();
       clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(go, 360);   // just past the 320ms widening
+      scrollTimer = setTimeout(go, 360);
     }
 
     function teardown() {
-      grid.classList.remove('is-strip', 'is-rail');
+      grid.classList.remove('is-strip', 'is-swipe');
       ['--strip-h', '--strip-h-full', '--strip-h-box', '--strip-card-w',
        '--strip-open-w', '--strip-slice', '--strip-media-h',
-       '--strip-media-open-h']
+       '--strip-media-open-h', '--swipe-pad']
         .forEach(p => grid.style.removeProperty(p));
       cards.forEach(c => c.classList.remove('is-active'));
       grid.scrollLeft = 0;
       stripped = false;
-      railed = false;
+      swiping = false;
     }
 
     function build() {
@@ -1114,52 +1108,72 @@
       const gaps = STRIP_GAP * (n - 1);
       const avail = grid.clientWidth;
 
-      let cardW = stripCardWidth(avail);
-      let slice = Math.floor((avail - cardW - gaps) / (n - 1));
-      let rail = false;
+      const cardW = stripCardWidth();
+      const slice = Math.floor((avail - cardW - gaps) / (n - 1));
 
-      if (slice < STRIP_SLICE_MIN) {
-        // The whole row will not fit at a readable card width, so it becomes
-        // a rail instead of squeezing the card: same widths, horizontal
-        // scroll, and the widened card is scrolled to.
-        rail = true;
-        slice = STRIP_RAIL_SLICE;
-        cardW = Math.min(cardW, avail - 34);
-      } else {
-        slice = Math.min(STRIP_SLICE_MAX, slice);
-      }
-      if (cardW < 200) return;   // nothing readable fits: keep the plain grid
+      // Not enough width for a row of slices plus a readable open card: the
+      // phone carousel takes over instead of squeezing anything.
+      if (slice < STRIP_SLICE_MIN) return buildSwipe(avail);
 
-      // An opened card takes the full width of a rail, so a phone still gets
-      // the same full-width card it had before.
-      const openW = rail ? avail : cardW;
-
-      heights = measureHeights(cardW, openW);
+      heights = measureHeights(cardW, cardW);
       if (!heights.compact) return;
 
       grid.style.setProperty('--strip-card-w', cardW + 'px');
-      grid.style.setProperty('--strip-open-w', openW + 'px');
-      grid.style.setProperty('--strip-slice', slice + 'px');
+      grid.style.setProperty('--strip-open-w', cardW + 'px');
+      grid.style.setProperty('--strip-slice',
+        Math.min(STRIP_SLICE_MAX, slice) + 'px');
       grid.style.setProperty('--strip-h', Math.ceil(heights.compact) + 'px');
       // The shot's own 16/9 height at the widened width. A collapsed card
       // hands the whole card over to the shot instead, so no slice is left
       // as a bare panel.
-      grid.style.setProperty('--strip-media-h',
-        Math.round((cardW - 2) * 9 / 16) + 'px');
-      grid.style.setProperty('--strip-media-open-h',
-        Math.round((openW - 2) * 9 / 16) + 'px');
+      const shotH = Math.round((cardW - 2) * 9 / 16) + 'px';
+      grid.style.setProperty('--strip-media-h', shotH);
+      grid.style.setProperty('--strip-media-open-h', shotH);
 
       grid.classList.add('is-strip');
-      grid.classList.toggle('is-rail', rail);
       stripped = true;
-      railed = rail;
       applyHeight();
       paint();
-      scrollActiveIntoView(false);
     }
+
+    // Phone carousel: every card at full size in one draggable row, snapping
+    // card to card, so going back to an earlier card is the same gesture as
+    // going forward. Nothing collapses, so nothing has to be recovered.
+    function buildSwipe(avail) {
+      const cardW = Math.max(200, Math.min(340, avail - 28));
+
+      heights = measureHeights(cardW, cardW);
+      if (!heights.compact) return;
+
+      grid.style.setProperty('--strip-card-w', cardW + 'px');
+      grid.style.setProperty('--strip-h', Math.ceil(heights.compact) + 'px');
+      // Side padding of half the slack, so the first and last card can sit
+      // in the middle of the view like every other one.
+      grid.style.setProperty('--swipe-pad',
+        Math.max(0, Math.round((avail - cardW) / 2)) + 'px');
+
+      grid.classList.add('is-swipe');
+      swiping = true;
+      applyHeight();
+      paint();
+    }
+
+    // A swipe that ends on a card still fires a click in some browsers, and
+    // opening a card the visitor was only dragging past would be wrong.
+    let dragged = false;
+    let downX = 0, downY = 0;
 
     grid.addEventListener('pointerdown', (e) => {
       lastPointer = e.pointerType || 'mouse';
+      dragged = false;
+      downX = e.clientX;
+      downY = e.clientY;
+    }, true);
+
+    grid.addEventListener('pointermove', (e) => {
+      if (!e.buttons && e.pointerType !== 'touch') return;
+      if (Math.abs(e.clientX - downX) > 10 ||
+          Math.abs(e.clientY - downY) > 10) dragged = true;
     }, true);
 
     cards.forEach((card, i) => {
@@ -1177,9 +1191,11 @@
       card.addEventListener('click', (e) => {
         if (e.target.closest('a')) return;   // the GitHub link still wins
         e.stopPropagation();
+        if (dragged) return;   // this click is the end of a swipe
         // Touch has no hover to widen a card first, so the tap does that job
         // and the next one opens it. A slice carries only a sliver of a
         // screenshot: opening it straight from there would be a blind tap.
+        // On the carousel the cards are already full size, so a tap opens.
         if (stripped && lastPointer === 'touch' && active !== i) {
           if (expanded >= 0) setExpanded(-1);
           setActive(i);
@@ -1195,7 +1211,7 @@
     });
 
     function sync() {
-      if (reduceMotion) { if (stripped) teardown(); return; }
+      if (reduceMotion) { if (stripped || swiping) teardown(); return; }
       build();
     }
 

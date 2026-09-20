@@ -652,19 +652,41 @@ a { color: inherit; text-decoration: none; }
   height: var(--strip-h-full);
 }
 
-/* Rail: too many cards for the width, so the row scrolls rather than the
-   open card shrinking past readability. JS scrolls the widened card into
-   view, since a phone has no pointer to do it. */
-.proj-grid.is-strip.is-rail {
-  justify-content: flex-start;
+/* --- Phone carousel -----------------------------------------------------
+   No room to collapse and expand six cards inside a phone, and a widened
+   card there leaves no way back to the one before it. So every card keeps
+   its full size in one row you drag sideways, snapping card to card. The
+   cards are styled exactly as they are in the grid — only the layout
+   differs. */
+.proj-grid.is-swipe {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  height: var(--strip-h-box);
+  padding-inline: var(--swipe-pad);
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+  transition: height 420ms var(--ease);
 }
-.proj-grid.is-strip.is-rail::-webkit-scrollbar { display: none; }
+.proj-grid.is-swipe::-webkit-scrollbar { display: none; }
+
+.proj-grid.is-swipe .proj {
+  flex: 0 0 auto;
+  width: var(--strip-card-w);
+  height: var(--strip-h);
+  scroll-snap-align: center;
+  transition: height 420ms var(--ease),
+              border-color var(--t-base) var(--ease),
+              opacity 380ms var(--ease);
+}
+.proj-grid.is-swipe .proj.is-expanded { height: var(--strip-h-full); }
+/* The lift belongs to a static grid; here it would just shiver as the row
+   is dragged under the finger. */
+.proj-grid.is-swipe .proj:hover { transform: none; }
 
 /* Beats .reveal.is-in, which would otherwise own the transition and drive
    the widening at the wrong speed. */
