@@ -1580,79 +1580,6 @@
   }
 
   /* =====================================================================
-     EXPERIENCE → PROJECTS HANDOFF
-
-     The two sections now carry the same field, but they carry it in two
-     separate canvases that know nothing about each other, and each one
-     ends at its own section edge. Left alone they meet on a flat dark
-     band where one stops and the next starts.
-
-     One scrubbed crossing, from the moment the boundary appears at the
-     foot of the screen to the moment it leaves the top: a pool of violet
-     centred on the seam swells and dissolves, filling the gap the two
-     canvases leave between them. The canvases are masked to fade into it
-     from either side, so the light runs through the join rather than
-     stopping at it.
-
-     Scrub means it is the same effect in reverse on the way back up.
-     Nothing here is a one-shot, so scrolling up is not a different path —
-     it is the same one, run backwards.
-     ===================================================================== */
-  const SEAM = {
-    peak: 0.45,   // where in the crossing the glow is at full strength
-    lift: 90,     // px the pool drifts up across the crossing (parallax)
-    grow: 0.4     // how much it spreads between rest and full
-  };
-
-  function setupSectionSeam() {
-    const projects = document.getElementById('projects');
-    const experience = document.getElementById('experience');
-    if (!projects || !experience || !projects.parentNode) return;
-
-    const seam = el('div', { class: 'seam', 'aria-hidden': 'true' });
-    seam.appendChild(el('span', { class: 'seam-glow' }));
-    projects.parentNode.insertBefore(seam, projects);
-
-    // Reduced motion keeps the light and drops the movement: a steady pool
-    // at the boundary, which is still a softer join than a hard edge.
-    if (reduceMotion || !window.gsap || !window.ScrollTrigger) {
-      seam.style.setProperty('--seam-opacity', '0.5');
-      seam.style.setProperty('--seam-scale', '1');
-      return;
-    }
-
-    function paint(p) {
-      // Rise and fall across the crossing, peaking just before the middle
-      // so the pool fades out slowly on the Projects side and some violet
-      // is still in the air under the heading.
-      const raw = p < SEAM.peak
-        ? p / SEAM.peak
-        : 1 - (p - SEAM.peak) / (1 - SEAM.peak);
-      const b = Math.min(1, Math.max(0, raw));
-      const s = b * b * (3 - 2 * b);   // smoothstep, so there are no corners
-
-      seam.style.setProperty('--seam-opacity', s.toFixed(3));
-      seam.style.setProperty('--seam-scale', (1 - SEAM.grow + s * SEAM.grow).toFixed(3));
-      // Drifting up slower than the page reads as depth rather than as a
-      // second thing scrolling.
-      seam.style.setProperty('--seam-y', (-p * SEAM.lift).toFixed(1) + 'px');
-    }
-
-    const st = window.ScrollTrigger.create({
-      trigger: seam,
-      start: 'top bottom',
-      end: 'top top',
-      scrub: true,
-      invalidateOnRefresh: true,
-      onUpdate: self => paint(self.progress)
-    });
-
-    // A reload partway down the page starts mid-crossing, and onUpdate only
-    // fires once something scrolls.
-    paint(st.progress);
-  }
-
-  /* =====================================================================
      CURSOR IMAGE TRAIL
 
      Decorative only: a pointer-events:none layer behind everything from
@@ -1920,7 +1847,6 @@
     setupProjectStrip();
     setupFluidBackground('experience');
     setupFluidBackground('projects');
-    setupSectionSeam();
     setupCursorTrail();
     initHero3D();
   }

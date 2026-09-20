@@ -633,13 +633,15 @@ a { color: inherit; text-decoration: none; }
 .experience { position: relative; overflow: hidden; }
 .experience > .wrap { position: relative; z-index: 1; }
 
-/* The field fades out into the boundary rather than ending on it, so the
-   seam glow below picks the light up where this canvas leaves off. */
+/* A short fade at the foot, matched by the one at the head of Projects, so
+   the two canvases meet without a visible cut where one stops and the next
+   starts. Short on purpose: a long fade leaves a dead dark band between the
+   sections instead of one field running through them. */
 .experience > canvas {
   -webkit-mask-image:
-    linear-gradient(to bottom, #000 0, #000 calc(100% - clamp(160px, 22vw, 280px)), transparent 100%);
+    linear-gradient(to bottom, #000 0, #000 calc(100% - 90px), transparent 100%);
   mask-image:
-    linear-gradient(to bottom, #000 0, #000 calc(100% - clamp(160px, 22vw, 280px)), transparent 100%);
+    linear-gradient(to bottom, #000 0, #000 calc(100% - 90px), transparent 100%);
 }
 
 /* One role, so it gets a panel rather than a timeline: a rail down the side
@@ -705,49 +707,6 @@ a { color: inherit; text-decoration: none; }
   .exp-head { align-items: flex-start; flex-direction: column; gap: 10px; }
 }
 
-/* ------------------- Experience → Projects handoff ----------------------
-   The two sections carry the same field, but in two separate canvases that
-   each stop at their own edge, leaving a flat dark band between them. This
-   bridges it. The element sits between the two sections and is zero height, so
-   the glow is drawn across the boundary without adding a pixel of space to
-   the page. JS scrubs --seam-opacity, --seam-scale and --seam-y against the
-   scroll; with no JS or under reduced motion it holds a steady low glow. */
-.seam {
-  position: relative;
-  height: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-
-/* Pinned to both edges rather than given a width: the scale only ever runs
-   up to 1, so the pool can never reach past the page and put a horizontal
-   scrollbar under it. */
-.seam-glow {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: clamp(320px, 40vw, 540px);
-  /* Centred on the boundary: half of it lies in each section. */
-  transform:
-    translate3d(0, calc(-50% + var(--seam-y, 0px)), 0)
-    scale(var(--seam-scale, 0.72));
-  opacity: var(--seam-opacity, 0);
-  background: radial-gradient(
-    ellipse 50% 50% at 50% 50%,
-    rgba(139, 92, 246, 0.30) 0%,
-    rgba(109, 66, 224, 0.15) 36%,
-    rgba(51, 32, 122, 0.06) 60%,
-    rgba(0, 0, 0, 0) 78%
-  );
-  filter: blur(24px);
-  will-change: transform, opacity;
-}
-
-@media (max-width: 700px) {
-  .seam-glow { filter: blur(18px); }
-}
-
 /* ---------------------------- Projects ---------------------------------- */
 
 /* Uniform grid: equal columns, and grid-auto-rows:1fr forces every row to the
@@ -767,15 +726,13 @@ a { color: inherit; text-decoration: none; }
 .projects { overflow: hidden; }
 .projects > .wrap { position: relative; z-index: 1; }
 
-/* The field fades in from the section's top edge instead of arriving at full
-   strength on the boundary. It clears the shader's near-black over the top
-   band, so the seam glow above carries through the join rather than being
-   cut off by a canvas that starts exactly where the section does. */
+/* The matching fade at the head, so this canvas does not start its
+   near-black on the boundary where the one above has just faded out. */
 .projects > canvas {
   -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0, #000 clamp(160px, 22vw, 280px));
+    linear-gradient(to bottom, transparent 0, #000 90px);
   mask-image:
-    linear-gradient(to bottom, transparent 0, #000 clamp(160px, 22vw, 280px));
+    linear-gradient(to bottom, transparent 0, #000 90px);
 }
 
 /* --- Hover-expand strip -------------------------------------------------
