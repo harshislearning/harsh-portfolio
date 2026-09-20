@@ -1525,6 +1525,95 @@
   }
 
   /* =====================================================================
+     EXPERIENCE — aurora bars
+
+     Animation reference: Unlumen UI "aurora-bars", rebuilt in vanilla
+     because this site carries no React and no Motion. The shape of it is
+     the component's own: an arch envelope across the row, two sine waves
+     per bar, the same ratios, speed and vignette.
+
+     Two deliberate departures. The bars are scaled rather than resized,
+     since twenty-four height writes a frame is twenty-four layouts a
+     frame and a vertical scale paints the gradient identically. And the
+     palette is this page's violet rather than the component's pink, with
+     no opaque backdrop behind it, so the section keeps its own colour.
+     ===================================================================== */
+  const AURORA = {
+    maxHeightRatio: 0.92,
+    minHeightRatio: 0.18,
+    speed: 0.5
+  };
+
+  function auroraHeight(i, total, t) {
+    // Arch envelope: tallest in the centre, shorter at the edges.
+    const arch = Math.sin((i / (total - 1)) * Math.PI);
+    const phase1 = (i / total) * Math.PI * 2;
+    const phase2 = (i / total) * Math.PI * 5.3;
+    const wave = 0.5 +
+      0.25 * Math.sin(t * 1.1 + phase1) +
+      0.25 * Math.sin(t * 0.7 + phase2);
+    const blended = arch * 0.65 + wave * 0.35;
+    return AURORA.minHeightRatio +
+      blended * (AURORA.maxHeightRatio - AURORA.minHeightRatio);
+  }
+
+  function setupExperienceAurora() {
+    const section = document.getElementById('experience');
+    if (!section) return;
+
+    // Fewer bars on a narrow screen: two dozen inside a phone's width are
+    // hairlines, and the blur would smear them into one band.
+    const count = window.innerWidth < 700 ? 14 : 24;
+
+    const layer = el('div', { class: 'aurora', 'aria-hidden': 'true' });
+    const bars = [];
+    for (let i = 0; i < count; i++) {
+      const bar = el('span', { class: 'aurora-bar' });
+      bar.style.transform = 'scaleY(' + auroraHeight(i, count, 0).toFixed(4) + ')';
+      layer.appendChild(bar);
+      bars.push(bar);
+    }
+    layer.appendChild(el('span', { class: 'aurora-veil' }));
+    section.insertBefore(layer, section.firstChild);
+
+    // Reduced motion keeps the arrangement and drops the movement.
+    if (reduceMotion) return;
+
+    let raf = 0;
+    let t = 0;
+    let last = performance.now();
+    let visible = false;
+
+    function frame(now) {
+      raf = requestAnimationFrame(frame);
+      const dt = Math.min((now - last) / 1000, 1 / 30);
+      last = now;
+      t += dt * AURORA.speed;
+      for (let i = 0; i < count; i++) {
+        bars[i].style.transform =
+          'scaleY(' + auroraHeight(i, count, t).toFixed(4) + ')';
+      }
+    }
+
+    function run(on) {
+      if (on && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
+      else if (!on && raf) { cancelAnimationFrame(raf); raf = 0; }
+    }
+
+    // Nothing is drawn while the section is off screen or the tab is in the
+    // background: it is a backdrop, and it should cost nothing to scroll past.
+    const io = new IntersectionObserver(entries => {
+      visible = entries.some(e => e.isIntersecting);
+      run(visible && !document.hidden);
+    }, { rootMargin: '120px 0px' });
+    io.observe(section);
+
+    document.addEventListener('visibilitychange', () => {
+      run(visible && !document.hidden);
+    });
+  }
+
+  /* =====================================================================
      CURSOR IMAGE TRAIL
 
      Decorative only: a pointer-events:none layer behind everything from
@@ -1791,6 +1880,7 @@
     setupScroll();
     setupProjectStrip();
     setupProjectFluid();
+    setupExperienceAurora();
     setupCursorTrail();
     initHero3D();
   }

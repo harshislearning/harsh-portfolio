@@ -628,6 +628,63 @@ a { color: inherit; text-decoration: none; }
 
 /* --------------------------- Experience --------------------------------- */
 
+/* Aurora bars sit behind the section; the content rides above them. */
+.experience { position: relative; overflow: hidden; }
+.experience > .wrap { position: relative; z-index: 1; }
+
+.aurora {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+  /* The bars are brightest at their base, and their base is the section's
+     last pixel, so without this the aurora ends on a lit horizontal seam
+     against the next section. Fading the bottom band lets it settle into
+     the page instead of stopping at it. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+}
+
+/* Full height, scaled from the floor. Scaling paints the gradient exactly
+   as a shorter bar would, and costs no layout. */
+.aurora-bar {
+  flex: 1 1 0;
+  height: 100%;
+  margin-inline: 1.5px;
+  transform-origin: 50% 100%;
+  border-radius: 9999px 9999px 0 0;
+  background: linear-gradient(
+    to top,
+    #A78BFA 0%,
+    #8B5CF6 25%,
+    #6D42E0 50%,
+    #33207A 75%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  filter: blur(8px);
+  opacity: 0.52;
+  will-change: transform;
+}
+
+/* The component's vignette, in this page's near-black rather than pure
+   black, so it settles the bars into the section instead of laying a
+   darker panel over it. */
+.aurora-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 90% 80% at 50% 100%,
+    transparent 40%,
+    rgba(8, 7, 12, 0.88) 100%
+  );
+}
+
+@media (max-width: 700px) {
+  .aurora-bar { filter: blur(6px); opacity: 0.44; }
+}
+
 /* One role, so it gets a panel rather than a timeline: a rail down the side
    of a single entry is a diagram of nothing. It reads as the same family as
    a project card, since it is the same kind of object. */
