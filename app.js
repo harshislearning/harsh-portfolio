@@ -948,6 +948,15 @@
   const STRIP_SLICE_MIN = 40;   // narrowest a collapsed card may get
   const STRIP_SLICE_MAX = 96;
 
+  // The phone carousel's swing, from Skiper UI "skiper50" (Carousel_004 by
+  // @gurvinder-singh02), which drives Swiper's creative effect with
+  // prev/next translate ["±5%", 0, -200] and rotate ±100deg about the
+  // inner edge. Applied here straight to the scroll position instead, so
+  // the cards answer the finger rather than a library's own drag handling.
+  const SWIPE_ROTATE = 100;   // degrees at a full card's distance
+  const SWIPE_DEPTH = 200;    // px pushed back at that distance
+  const SWIPE_SHIFT = 5;      // % of the card's own width
+
   function stripCardWidth() {
     const w = window.innerWidth;
     if (w >= 1200) return 360;
@@ -1006,6 +1015,7 @@
       grid.classList.toggle('has-expanded', i >= 0);
       applyHeight();
       paint();
+      if (swiping) { settle(); paintSwipe(); }
       scrollActiveIntoView(true);
 
       // The measured height is taken in grid flow, which can be a line of
@@ -1064,29 +1074,25 @@
       return { compact: compact, each: each };
     }
 
+    // Where the row has to sit for card i to be in the middle of the view.
+    // Derived from the layout, never measured: a card's own box has been
+    // turned by the swing, so its rect is not where it started.
+    function centreTarget(i) {
+      const m = swipeMetrics;
+      if (!m) return 0;
+      const max = grid.scrollWidth - grid.clientWidth;
+      const want = m.pad + i * m.step + m.cardW / 2 - grid.clientWidth / 2;
+      return Math.max(0, Math.min(max, want));
+    }
+
     // The strip widens a card in place, so nothing has to scroll. The
     // carousel does: an opened card is brought to the middle of the view.
-    let scrollTimer = 0;
     function scrollActiveIntoView(smooth) {
       if (!swiping) return;
-      const go = () => {
-        const card = cards[expanded >= 0 ? expanded : active];
-        if (!card || !swiping) return;
-        // Measured against the carousel itself. offsetLeft is no use here:
-        // the offset parent is the section wrapper, not the scroller, so it
-        // carries the wrapper's own inset.
-        const cardBox = card.getBoundingClientRect();
-        const box = grid.getBoundingClientRect();
-        const delta = (cardBox.left - box.left) -
-                      (box.width - cardBox.width) / 2;
-        grid.scrollTo({
-          left: Math.max(0, grid.scrollLeft + delta),
-          behavior: smooth && !reduceMotion ? 'smooth' : 'auto'
-        });
-      };
-      go();
-      clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(go, 360);
+      grid.scrollTo({
+        left: centreTarget(expanded >= 0 ? expanded : active),
+        behavior: smooth && !reduceMotion ? 'smooth' : 'auto'
+      });
     }
 
     function teardown() {
@@ -1094,10 +1100,17 @@
       ['--strip-h', '--strip-h-full', '--strip-h-box', '--strip-card-w',
        '--strip-slice', '--strip-media-h', '--swipe-pad']
         .forEach(p => grid.style.removeProperty(p));
-      cards.forEach(c => c.classList.remove('is-active'));
+      grid.classList.remove('is-settling');
+      cards.forEach(c => {
+        c.classList.remove('is-active');
+        c.style.transform = '';
+        c.style.transformOrigin = '';
+        c.style.zIndex = '';
+      });
       grid.scrollLeft = 0;
       stripped = false;
       swiping = false;
+      swipeMetrics = null;
     }
 
     function build() {
@@ -1136,23 +1149,119 @@
     // Phone carousel: every card at full size in one draggable row, snapping
     // card to card, so going back to an earlier card is the same gesture as
     // going forward. Nothing collapses, so nothing has to be recovered.
+    let swipeMetrics = null;
+
     function buildSwipe(avail) {
       const cardW = Math.max(200, Math.min(340, avail - 28));
 
       heights = measureHeights(cardW, cardW);
       if (!heights.compact) return;
 
+      const pad = Math.max(0, Math.round((avail - cardW) / 2));
+
       grid.style.setProperty('--strip-card-w', cardW + 'px');
       grid.style.setProperty('--strip-h', Math.ceil(heights.compact) + 'px');
       // Side padding of half the slack, so the first and last card can sit
       // in the middle of the view like every other one.
-      grid.style.setProperty('--swipe-pad',
-        Math.max(0, Math.round((avail - cardW) / 2)) + 'px');
+      grid.style.setProperty('--swipe-pad', pad + 'px');
 
       grid.classList.add('is-swipe');
       swiping = true;
+      swipeMetrics = { cardW: cardW, pad: pad, step: cardW + SWIPE_GAP };
       applyHeight();
       paint();
+      paintSwipe();
+    }
+
+    // Each card's swing is read from where it sits relative to the middle of
+    // the view: 0 at the centre, a full turn one card's distance away. The
+    // geometry is computed from the layout rather than measured, since a
+    // card's own box has already been rotated by the previous frame.
+    function paintSwipe() {
+      if (!swiping || !swipeMetrics) return;
+      const m = swipeMetrics;
+      const mid = grid.scrollLeft + grid.clientWidth / 2;
+      const flat = expanded >= 0;
+
+      cards.forEach((card, i) => {
+        if (flat) {
+          card.style.transform = '';
+          card.style.transformOrigin = '';
+          card.style.zIndex = '';
+          return;
+        }
+        const centre = m.pad + i * m.step + m.cardW / 2;
+        // Clamped at one card's distance, so everything further out holds
+        // the same turn and stacks behind, as the reference's does.
+        const p = clamp1((centre - mid) / m.step);
+        const t = Math.abs(p);
+        const dir = p < 0 ? 1 : -1;   // the card turns away from the centre
+
+        card.style.transformOrigin = p < 0 ? 'left center' : 'right center';
+        card.style.transform =
+          'translate3d(' + (-dir * SWIPE_SHIFT * t).toFixed(2) + '%, 0, ' +
+          (-SWIPE_DEPTH * t).toFixed(1) + 'px) rotateY(' +
+          (dir * SWIPE_ROTATE * t).toFixed(2) + 'deg)';
+        card.style.zIndex = String(Math.round(100 - t * 50));
+      });
+    }
+
+    function clamp1(v) { return v < -1 ? -1 : v > 1 ? 1 : v; }
+
+    let swipeRaf = 0;
+    grid.addEventListener('scroll', () => {
+      if (!swiping) return;
+      if (!swipeRaf) {
+        swipeRaf = requestAnimationFrame(() => { swipeRaf = 0; paintSwipe(); });
+      }
+      snapSoon();
+    }, { passive: true });
+
+    // Snapping is done here rather than with CSS scroll-snap. Snap points
+    // are taken from a card's rendered box, and the swing has already
+    // turned that box away, so CSS would snap to the wrong places. This
+    // waits for the drag and its momentum to finish, then eases the nearest
+    // card to the middle.
+    let snapTimer = 0;
+    let holding = false;
+
+    function nearestIndex() {
+      const m = swipeMetrics;
+      if (!m) return 0;
+      const mid = grid.scrollLeft + grid.clientWidth / 2;
+      return Math.max(0, Math.min(cards.length - 1,
+        Math.round((mid - m.pad - m.cardW / 2) / m.step)));
+    }
+
+    function snapSoon() {
+      clearTimeout(snapTimer);
+      snapTimer = setTimeout(() => {
+        if (!swiping || holding || expanded >= 0) return;
+        const i = nearestIndex();
+        active = i;
+        const target = centreTarget(i);
+        if (Math.abs(grid.scrollLeft - target) < 1.5) return;
+        grid.scrollTo({
+          left: target,
+          behavior: reduceMotion ? 'auto' : 'smooth'
+        });
+      }, 140);
+    }
+
+    // A finger still on the glass is still dragging, momentum or not.
+    grid.addEventListener('pointerdown', () => { holding = true; }, true);
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => {
+      grid.addEventListener(ev, () => { holding = false; snapSoon(); }, true);
+    });
+
+    // Opening or closing a card flattens or restores the swing, and that one
+    // change should ease rather than jump. Dragging must not, so the
+    // transition is only in place while it settles.
+    let settleTimer = 0;
+    function settle() {
+      grid.classList.add('is-settling');
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => grid.classList.remove('is-settling'), 400);
     }
 
     // A swipe that ends on a card still fires a click in some browsers, and

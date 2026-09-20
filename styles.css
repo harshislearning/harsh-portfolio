@@ -662,10 +662,12 @@ a { color: inherit; text-decoration: none; }
   padding-inline: var(--swipe-pad);
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+  /* The swing is a real turn in depth, so the row is the viewport the
+     cards are seen through. */
+  perspective: 1200px;
   transition: height 420ms var(--ease);
 }
 .proj-grid.is-swipe::-webkit-scrollbar { display: none; }
@@ -674,7 +676,8 @@ a { color: inherit; text-decoration: none; }
   flex: 0 0 auto;
   width: var(--strip-card-w);
   height: var(--strip-h);
-  scroll-snap-align: center;
+  backface-visibility: hidden;
+  will-change: transform;
   transition: height 420ms var(--ease),
               border-color var(--t-base) var(--ease),
               opacity 380ms var(--ease);
@@ -683,6 +686,16 @@ a { color: inherit; text-decoration: none; }
 /* The lift belongs to a static grid; here it would just shiver as the row
    is dragged under the finger. */
 .proj-grid.is-swipe .proj:hover { transform: none; }
+
+/* Opening a card flattens the swing and closing restores it. That one
+   change eases; the swing itself never does, since it has to stay under
+   the finger. */
+.proj-grid.is-swipe.is-settling .proj {
+  transition: height 420ms var(--ease),
+              transform 320ms var(--ease),
+              border-color var(--t-base) var(--ease),
+              opacity 380ms var(--ease);
+}
 
 /* Beats .reveal.is-in, which would otherwise own the transition and drive
    the widening at the wrong speed. */
