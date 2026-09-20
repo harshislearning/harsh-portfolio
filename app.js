@@ -117,6 +117,9 @@
   /* =====================================================================
      SMALL HELPERS
      ===================================================================== */
+  // attrs are set with setAttribute, which stores the string verbatim: values
+  // passed here must NOT go through esc(), or the entities land in the
+  // attribute itself. html is assigned to innerHTML, which always needs it.
   function el(tag, attrs, html) {
     const n = document.createElement(tag);
     if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
@@ -140,12 +143,20 @@
     // Every card carries the same blocks in the same order, so the grid can
     // size them all identically.
     CONFIG.projects.forEach((p, i) => {
-      const card = el('article', { class: 'proj reveal' });
+      // The card is the control that opens itself, so it has to be reachable
+      // by keyboard. Nothing inside a closed card is focusable — the GitHub
+      // link is display:none until the card opens — so without this there is
+      // no way to a project without a pointer.
+      const card = el('article', {
+        class: 'proj reveal', tabindex: '0', 'aria-expanded': 'false'
+      });
 
       const media = el('div', { class: 'proj-media' });
       media.appendChild(el('img', {
         src: p.image,
-        alt: esc(p.title) + ' screenshot',
+        // Not esc(): setAttribute stores the string as given and never parses
+        // entities, so escaping here puts a literal "&amp;" in the alt text.
+        alt: p.title + ' screenshot',
         loading: i === 0 ? 'eager' : 'lazy',
         decoding: 'async'
       }));
@@ -243,7 +254,8 @@
 
       const shot = el('img', {
         class: 'cert-shot', src: c.thumb, id: panelId,
-        alt: esc(c.title) + ' certificate', loading: 'lazy', decoding: 'async'
+        // Attribute, not markup: esc() here would read out as "&amp;".
+        alt: c.title + ' certificate', loading: 'lazy', decoding: 'async'
       });
       const scrim = el('div', { class: 'cert-scrim' });
 
@@ -440,11 +452,20 @@
     const toggle = document.getElementById('nav-toggle');
     const links = document.getElementById('nav-links');
 
+    // One place that owns the menu's state. The two closers below used to set
+    // aria-expanded and leave the label behind, so after a link was tapped the
+    // button still announced itself as "Close navigation" while it opened.
+    function setMenu(open) {
+      if (!links) return;
+      links.classList.toggle('is-open', open);
+      if (!toggle) return;
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+    }
+
     if (toggle && links) {
       toggle.addEventListener('click', () => {
-        const open = links.classList.toggle('is-open');
-        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+        setMenu(!links.classList.contains('is-open'));
       });
     }
 
@@ -462,20 +483,14 @@
         if (!id || !document.getElementById(id)) return;
         e.preventDefault();
         scrollToId(id);
-        if (links && links.classList.contains('is-open')) {
-          links.classList.remove('is-open');
-          toggle.setAttribute('aria-expanded', 'false');
-        }
+        if (links && links.classList.contains('is-open')) setMenu(false);
       }
     });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (modalRoot.firstChild) closeModal();
-        else if (links && links.classList.contains('is-open')) {
-          links.classList.remove('is-open');
-          toggle.setAttribute('aria-expanded', 'false');
-        }
+        else if (links && links.classList.contains('is-open')) setMenu(false);
       }
     });
   }
@@ -642,11 +657,23 @@
      several of them tend to land together.
      --------------------------------------------------------------------- */
   let refreshTimer = 0;
+  let refreshAt = 0;
 
   function refreshScroll(delay) {
     if (!window.ScrollTrigger) return;
+    const wait = delay == null ? 180 : delay;
+    const when = performance.now() + wait;
+    // The longest outstanding wait wins. These used to share one timer, so a
+    // short request cancelled a long one — a certificate row settling at 120ms
+    // would pull the refresh in ahead of a card that was still growing for
+    // another 440, and the page was measured mid-change.
+    if (refreshTimer && when <= refreshAt) return;
     clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => window.ScrollTrigger.refresh(), delay || 180);
+    refreshAt = when;
+    refreshTimer = setTimeout(() => {
+      refreshTimer = 0;
+      window.ScrollTrigger.refresh();
+    }, wait);
   }
 
   function webglAvailable() {
@@ -779,8 +806,12 @@
     // running behind the Projects section is pure battery cost.
     let visible = true;
     let hidden = document.hidden;
+    // entries.some, not entries[0]: a callback can carry several records for
+    // the same target, and reading only the first can take a stale one — the
+    // loop then stops with the hero in plain view and nothing to start it
+    // again until the next crossing.
     const io = new IntersectionObserver(
-      entries => { visible = entries[0].isIntersecting; },
+      entries => { visible = entries.some(e => e.isIntersecting); },
       { threshold: 0 }
     );
     io.observe(host);
@@ -827,7 +858,12 @@
     }
     frame();
 
-    window.addEventListener('pagehide', () => {
+    window.addEventListener('pagehide', (e) => {
+      // A page going into the back/forward cache is coming back alive, with
+      // this same document. Disposing the renderer there leaves the hero
+      // empty on the way back, and .is-live has already hidden the CSS
+      // fallback, so there would be nothing behind it at all.
+      if (e.persisted) return;
       cancelAnimationFrame(raf);
       io.disconnect();
       ro.disconnect();
@@ -1133,7 +1169,11 @@
     function setExpanded(i) {
       expanded = i;
       if (i >= 0) active = i;
-      cards.forEach((c, n) => c.classList.toggle('is-expanded', n === i));
+      cards.forEach((c, n) => {
+        const open = n === i;
+        c.classList.toggle('is-expanded', open);
+        c.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
       // Equal rows are right for a grid of compact cards, but an opened card
       // must be free to grow without dragging every other row with it.
       grid.classList.toggle('has-expanded', i >= 0);
@@ -1479,8 +1519,19 @@
       });
 
       // Keyboard equivalent, so tabbing does not leave the focused card as a
-      // 46px slice.
+      // 46px slice. The card itself carries the tabindex: nothing inside a
+      // closed one is focusable, since the GitHub link is display:none until
+      // the card opens.
       card.addEventListener('focusin', () => setActive(i));
+
+      // Enter and Space open and close it, the way the click does. Only when
+      // the card itself holds focus — the link inside keeps its own keys.
+      card.addEventListener('keydown', (e) => {
+        if (e.target !== card) return;
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+        e.preventDefault();   // Space would otherwise page down
+        setExpanded(expanded === i ? -1 : i);
+      });
 
       card.addEventListener('click', (e) => {
         if (e.target.closest('a')) return;   // the GitHub link still wins
@@ -1834,7 +1885,7 @@
   function buildModal(title, credential, openHref, openLabel) {
     modalRoot.innerHTML = '';
     const backdrop = el('div', { class: 'modal-backdrop' });
-    const panel = el('div', { class: 'modal-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': esc(title) });
+    const panel = el('div', { class: 'modal-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': title });
 
     const head = el('div', { class: 'modal-head' });
     head.appendChild(el('p', { class: 'modal-title' }, esc(title)));
@@ -1874,7 +1925,7 @@
 
   function openImage(title, src, credential) {
     const host = buildModal(title, credential, src, 'Open full image ↗');
-    host.appendChild(el('img', { src: src, alt: esc(title) + ' certificate' }));
+    host.appendChild(el('img', { src: src, alt: title + ' certificate' }));
   }
 
   function openPdf(title, src) {

@@ -355,8 +355,12 @@ export async function createFluidBackground(container, options) {
   let prev = performance.now();
   let elapsed = 0;
 
+  // entries.some, not entries[0]: one callback can carry several records for
+  // the same target, and reading only the first can take a stale one. The
+  // loop then holds with the section in plain view and the canvas frozen on
+  // its last frame until something crosses again.
   const io = new IntersectionObserver(entries => {
-    visible = entries[0].isIntersecting;
+    visible = entries.some(e => e.isIntersecting);
   }, { threshold: 0 });
   io.observe(container);
 

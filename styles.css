@@ -1034,6 +1034,11 @@ a { color: inherit; text-decoration: none; }
 
 .proj { cursor: pointer; }
 .proj.is-expanded { cursor: default; }
+/* The card is focusable, so it has to show where the focus is. */
+.proj:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 /* The link keeps its own pointer and must not read as part of the card. */
 .proj .proj-link { cursor: pointer; }
 
