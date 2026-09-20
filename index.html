@@ -246,6 +246,14 @@
 
   </div><!-- /.trail-zone -->
 
+  <!--
+    One fluid field behind both sections, on one canvas. Two canvases, one
+    per section, could not be continuous: each ran its own simulation and
+    they met on a line, so a plume crossing it died on one side and a
+    different one appeared on the other.
+  -->
+  <div class="fluid-zone" id="fluid-zone">
+
   <!-- ==================== EXPERIENCE ==================== -->
   <section id="experience" class="section experience">
     <div class="wrap">
@@ -301,6 +309,8 @@
       <div class="proj-grid" id="projects-grid"></div>
     </div>
   </section>
+
+  </div><!-- /.fluid-zone -->
 
   <!-- ==================== CERTIFICATIONS ==================== -->
   <section id="certifications" class="section certs">

@@ -877,13 +877,16 @@
   /* =====================================================================
      PIXEL LIQUID BACKGROUND
 
-     GPU fluid sim behind a section. Loaded only when that section is near,
-     and skipped entirely under reduced motion or without WebGL.
+     GPU fluid sim behind Experience and Projects. Loaded only when the
+     zone is near, and skipped entirely under reduced motion or without
+     WebGL.
 
-     Experience and Projects both carry it, so the lower half of the page
-     has one backdrop rather than a different idea per section. That is two
-     sims, each paused whenever its own section is off screen, so only the
-     one being looked at is ever drawing.
+     One canvas across both sections, not one each. A canvas per section
+     ran a simulation per section, and the two met on a line: the field
+     dipped to nothing across the join, and a plume carried down by the
+     cursor died there while an unrelated one appeared below it. A single
+     field has no join to cross — and it is one WebGL context rather than
+     two, on a page that already runs one for the hero.
      ===================================================================== */
   function setupFluidBackground(id) {
     const section = document.getElementById(id);
@@ -1845,8 +1848,7 @@
     setupHeroSwap();
     setupScroll();
     setupProjectStrip();
-    setupFluidBackground('experience');
-    setupFluidBackground('projects');
+    setupFluidBackground('fluid-zone');
     setupCursorTrail();
     initHero3D();
   }

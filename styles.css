@@ -628,21 +628,12 @@ a { color: inherit; text-decoration: none; }
 
 /* --------------------------- Experience --------------------------------- */
 
-/* Same fluid field as Projects, on its own canvas. The canvas is prepended
-   to the section; the content rides above it. */
-.experience { position: relative; overflow: hidden; }
+/* The fluid field spans this section and Projects on one canvas, held by
+   .fluid-zone around them both. The sections themselves stay transparent so
+   it shows through; their content rides above it. */
+.fluid-zone { position: relative; overflow: hidden; }
+.experience { position: relative; }
 .experience > .wrap { position: relative; z-index: 1; }
-
-/* A short fade at the foot, matched by the one at the head of Projects, so
-   the two canvases meet without a visible cut where one stops and the next
-   starts. Short on purpose: a long fade leaves a dead dark band between the
-   sections instead of one field running through them. */
-.experience > canvas {
-  -webkit-mask-image:
-    linear-gradient(to bottom, #000 0, #000 calc(100% - 90px), transparent 100%);
-  mask-image:
-    linear-gradient(to bottom, #000 0, #000 calc(100% - 90px), transparent 100%);
-}
 
 /* One role, so it gets a panel rather than a timeline: a rail down the side
    of a single entry is a diagram of nothing. It reads as the same family as
@@ -722,18 +713,10 @@ a { color: inherit; text-decoration: none; }
    to grow without stretching every other row to match. */
 .proj-grid.has-expanded { grid-auto-rows: auto; }
 
-/* The fluid canvas is prepended to the section; content stays above it. */
+/* The field is behind this section too, on .fluid-zone's canvas; content
+   stays above it. */
 .projects { overflow: hidden; }
 .projects > .wrap { position: relative; z-index: 1; }
-
-/* The matching fade at the head, so this canvas does not start its
-   near-black on the boundary where the one above has just faded out. */
-.projects > canvas {
-  -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0, #000 90px);
-  mask-image:
-    linear-gradient(to bottom, transparent 0, #000 90px);
-}
 
 /* --- Hover-expand strip -------------------------------------------------
    JS adds .is-strip once it has measured the cards. One centred row: the
