@@ -613,6 +613,71 @@ a { color: inherit; text-decoration: none; }
   color: #CDBEFF;
 }
 
+/* --------------------------- Experience --------------------------------- */
+
+/* One role, so it gets a panel rather than a timeline: a rail down the side
+   of a single entry is a diagram of nothing. It reads as the same family as
+   a project card, since it is the same kind of object. */
+.exp-item {
+  max-width: 880px;
+  margin-inline: auto;
+  padding: clamp(24px, 3.4vw, 36px);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--bg-elev);
+}
+
+.exp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.exp-role {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(19px, 2.2vw, 23px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+/* The bar is a separator, not a word: quiet enough to read as punctuation. */
+.exp-at { color: var(--text-mute); font-weight: 400; }
+
+/* Facts about the role, set apart from the description. The separators are
+   drawn between them rather than typed, so the markup stays a plain list. */
+.exp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--text-mute);
+}
+.exp-meta span + span::before {
+  content: "·";
+  margin-right: 10px;
+  color: var(--line-strong, var(--text-mute));
+  opacity: 0.7;
+}
+
+.exp-body {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text-dim);
+}
+.exp-body strong { color: var(--text); font-weight: 600; }
+
+@media (max-width: 560px) {
+  .exp-head { align-items: flex-start; flex-direction: column; gap: 10px; }
+}
+
 /* ---------------------------- Projects ---------------------------------- */
 
 /* Uniform grid: equal columns, and grid-auto-rows:1fr forces every row to the
