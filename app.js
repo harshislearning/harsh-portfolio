@@ -875,14 +875,18 @@
   }
 
   /* =====================================================================
-     PROJECTS — pixel liquid background
+     PIXEL LIQUID BACKGROUND
 
-     GPU fluid sim behind the project cards. Loaded only when the section is
-     near, skipped entirely on touch, small screens and reduced motion: it is
-     a second WebGL context on a page that already runs one for the hero.
+     GPU fluid sim behind a section. Loaded only when that section is near,
+     and skipped entirely under reduced motion or without WebGL.
+
+     Experience and Projects both carry it, so the lower half of the page
+     has one backdrop rather than a different idea per section. That is two
+     sims, each paused whenever its own section is off screen, so only the
+     one being looked at is ever drawing.
      ===================================================================== */
-  function setupProjectFluid() {
-    const section = document.getElementById('projects');
+  function setupFluidBackground(id) {
+    const section = document.getElementById(id);
     if (!section || reduceMotion) return;
     if (!webglAvailable()) return;
 
@@ -1576,118 +1580,28 @@
   }
 
   /* =====================================================================
-     EXPERIENCE — aurora bars
-
-     Animation reference: Unlumen UI "aurora-bars", rebuilt in vanilla
-     because this site carries no React and no Motion. The shape of it is
-     the component's own: an arch envelope across the row, two sine waves
-     per bar, the same ratios, speed and vignette.
-
-     Two deliberate departures. The bars are scaled rather than resized,
-     since twenty-four height writes a frame is twenty-four layouts a
-     frame and a vertical scale paints the gradient identically. And the
-     palette is this page's violet rather than the component's pink, with
-     no opaque backdrop behind it, so the section keeps its own colour.
-     ===================================================================== */
-  const AURORA = {
-    maxHeightRatio: 0.92,
-    minHeightRatio: 0.18,
-    speed: 0.5
-  };
-
-  function auroraHeight(i, total, t) {
-    // Arch envelope: tallest in the centre, shorter at the edges.
-    const arch = Math.sin((i / (total - 1)) * Math.PI);
-    const phase1 = (i / total) * Math.PI * 2;
-    const phase2 = (i / total) * Math.PI * 5.3;
-    const wave = 0.5 +
-      0.25 * Math.sin(t * 1.1 + phase1) +
-      0.25 * Math.sin(t * 0.7 + phase2);
-    const blended = arch * 0.65 + wave * 0.35;
-    return AURORA.minHeightRatio +
-      blended * (AURORA.maxHeightRatio - AURORA.minHeightRatio);
-  }
-
-  function setupExperienceAurora() {
-    const section = document.getElementById('experience');
-    if (!section) return;
-
-    // Fewer bars on a narrow screen: two dozen inside a phone's width are
-    // hairlines, and the blur would smear them into one band.
-    const count = window.innerWidth < 700 ? 14 : 24;
-
-    const layer = el('div', { class: 'aurora', 'aria-hidden': 'true' });
-    const bars = [];
-    for (let i = 0; i < count; i++) {
-      const bar = el('span', { class: 'aurora-bar' });
-      bar.style.transform = 'scaleY(' + auroraHeight(i, count, 0).toFixed(4) + ')';
-      layer.appendChild(bar);
-      bars.push(bar);
-    }
-    layer.appendChild(el('span', { class: 'aurora-veil' }));
-    section.insertBefore(layer, section.firstChild);
-
-    // Reduced motion keeps the arrangement and drops the movement.
-    if (reduceMotion) return;
-
-    let raf = 0;
-    let t = 0;
-    let last = performance.now();
-    let visible = false;
-
-    function frame(now) {
-      raf = requestAnimationFrame(frame);
-      const dt = Math.min((now - last) / 1000, 1 / 30);
-      last = now;
-      t += dt * AURORA.speed;
-      for (let i = 0; i < count; i++) {
-        bars[i].style.transform =
-          'scaleY(' + auroraHeight(i, count, t).toFixed(4) + ')';
-      }
-    }
-
-    function run(on) {
-      if (on && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
-      else if (!on && raf) { cancelAnimationFrame(raf); raf = 0; }
-    }
-
-    // Nothing is drawn while the section is off screen or the tab is in the
-    // background: it is a backdrop, and it should cost nothing to scroll past.
-    const io = new IntersectionObserver(entries => {
-      visible = entries.some(e => e.isIntersecting);
-      run(visible && !document.hidden);
-    }, { rootMargin: '120px 0px' });
-    io.observe(section);
-
-    document.addEventListener('visibilitychange', () => {
-      run(visible && !document.hidden);
-    });
-  }
-
-  /* =====================================================================
      EXPERIENCE → PROJECTS HANDOFF
 
-     Two sections with backdrops of their own used to meet on a flat dark
-     band: the aurora stopped, nothing happened, the fluid field started.
-     This carries the light across the boundary instead.
+     The two sections now carry the same field, but they carry it in two
+     separate canvases that know nothing about each other, and each one
+     ends at its own section edge. Left alone they meet on a flat dark
+     band where one stops and the next starts.
 
      One scrubbed crossing, from the moment the boundary appears at the
-     foot of the screen to the moment it leaves the top. A pool of violet
-     centred on the seam swells and dissolves while the aurora above it
-     sinks and dims, so the colour drains downward out of Experience and
-     into Projects rather than being cut off by the section edge.
+     foot of the screen to the moment it leaves the top: a pool of violet
+     centred on the seam swells and dissolves, filling the gap the two
+     canvases leave between them. The canvases are masked to fade into it
+     from either side, so the light runs through the join rather than
+     stopping at it.
 
-     Scrub means it is the same effect in reverse on the way back up: the
-     glow blooms again and the aurora rises and brightens as Experience
-     returns. Nothing here is a one-shot, so scrolling up is not a
-     different path — it is the same one, run backwards.
+     Scrub means it is the same effect in reverse on the way back up.
+     Nothing here is a one-shot, so scrolling up is not a different path —
+     it is the same one, run backwards.
      ===================================================================== */
   const SEAM = {
     peak: 0.45,   // where in the crossing the glow is at full strength
     lift: 90,     // px the pool drifts up across the crossing (parallax)
-    grow: 0.4,    // how much it spreads between rest and full
-    auroraSink: 44,
-    auroraDim: 0.7
+    grow: 0.4     // how much it spreads between rest and full
   };
 
   function setupSectionSeam() {
@@ -1698,8 +1612,6 @@
     const seam = el('div', { class: 'seam', 'aria-hidden': 'true' });
     seam.appendChild(el('span', { class: 'seam-glow' }));
     projects.parentNode.insertBefore(seam, projects);
-
-    const aurora = experience.querySelector('.aurora');
 
     // Reduced motion keeps the light and drops the movement: a steady pool
     // at the boundary, which is still a softer join than a hard edge.
@@ -1724,12 +1636,6 @@
       // Drifting up slower than the page reads as depth rather than as a
       // second thing scrolling.
       seam.style.setProperty('--seam-y', (-p * SEAM.lift).toFixed(1) + 'px');
-
-      if (aurora) {
-        aurora.style.opacity = (1 - p * SEAM.auroraDim).toFixed(3);
-        aurora.style.transform =
-          'translate3d(0,' + (p * SEAM.auroraSink).toFixed(1) + 'px,0)';
-      }
     }
 
     const st = window.ScrollTrigger.create({
@@ -2012,10 +1918,8 @@
     setupHeroSwap();
     setupScroll();
     setupProjectStrip();
-    setupProjectFluid();
-    setupExperienceAurora();
-    // After the aurora: the handoff dims and sinks that layer, so it has to
-    // exist by the time this looks for it.
+    setupFluidBackground('experience');
+    setupFluidBackground('projects');
     setupSectionSeam();
     setupCursorTrail();
     initHero3D();
