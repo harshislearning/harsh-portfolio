@@ -1443,6 +1443,21 @@ body.js .text-animate.is-split.is-in .ta-char { opacity: 1; transform: none; }
 /* Leaving the view resets in one step rather than playing out a reverse. */
 body.js .text-animate.ta-reset .ta-char { transition: none; }
 
+/* --- Text animate: fade in, by line -------------------------------------
+   Reference: Magic UI TextAnimate, animation="fadeIn" by="line". Each line
+   — here each paragraph — starts at zero opacity 20px low and rises into
+   place over the component's 300ms; JS sets the 60ms stagger and decides
+   when it plays. Hidden only once JS has armed it. */
+body.js .fade-lines.is-armed p {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1),
+              transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+body.js .fade-lines.is-armed p.is-in { opacity: 1; transform: none; }
+/* Shown on the way back up, or reset once left below: no movement. */
+body.js .fade-lines.is-armed p.fl-instant { transition: none; }
+
 /* ============================ RESPONSIVE ================================= */
 
 /* The hero keeps its split until 900px. A landscape tablet at 1024 has room

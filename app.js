@@ -602,6 +602,87 @@
   }
 
   /* =====================================================================
+     TEXT ANIMATE — fade in, by line
+
+     Reference: Magic UI "TextAnimate" with animation="fadeIn" and
+     by="line". Its values are kept: each line starts at zero opacity and
+     20px low and rises into place over 300ms, 60ms after the one before.
+     The component's "line" is a line of its source, split on newlines —
+     in its own demo, a paragraph — so here each paragraph of the About
+     columns is one line, and nothing is split.
+
+     It plays when the text is scrolled down onto, and only then. Coming
+     back up onto text already passed, it is simply there. Once the text
+     has gone back below the screen — the visitor has scrolled up above
+     it — it resets, so the next time it is scrolled down onto it plays
+     again. Every paragraph is watched on its own, so on a phone, where
+     the columns stack, each one arrives as it is reached rather than all
+     six playing while most of them are still off screen.
+     ===================================================================== */
+  const FADE_LINES = { stagger: 60 };   // ms — the component's own for lines
+
+  function setupFadeLines() {
+    const hosts = Array.prototype.slice.call(document.querySelectorAll('.fade-lines'));
+    // Reduced motion never arms it, so the text is never hidden.
+    if (!hosts.length || reduceMotion) return;
+
+    hosts.forEach(host => {
+      const lines = Array.prototype.slice.call(host.querySelectorAll('p'));
+      if (!lines.length) return;
+
+      // Without transition, for the two changes nobody should see happen:
+      // showing text reached from above, and resetting text left below.
+      function instantly(line, shown) {
+        line.classList.add('fl-instant');
+        line.style.transitionDelay = '';
+        line.classList.toggle('is-in', shown);
+        // eslint-disable-next-line no-unused-expressions
+        line.offsetWidth;
+        line.classList.remove('fl-instant');
+      }
+
+      const io = new IntersectionObserver(entries => {
+        let queued = 0;
+        // DOM order, so lines arriving together are staggered top to
+        // bottom and left to right, whatever order the records came in.
+        entries
+          .slice()
+          .sort((a, b) => lines.indexOf(a.target) - lines.indexOf(b.target))
+          .forEach(e => {
+            const line = e.target;
+            const top = e.boundingClientRect.top;
+            const floor = e.rootBounds ? e.rootBounds.bottom : window.innerHeight;
+            // Which way it arrived is read from which half of the screen it
+            // lands in, not from whether its top is on screen. A short line
+            // — "Based in Pune", 26px — can cross the top edge and land
+            // wholly inside in a single frame of a fast scroll, top already
+            // on screen, and was being read as arriving from below and
+            // faded in on the way up. Coming down onto it lands near the
+            // foot; coming back up lands near the head, however fast.
+            const fromBelow = top > floor / 2;
+            if (e.isIntersecting) {
+              if (line.classList.contains('is-in')) return;
+              if (fromBelow) {
+                // Came up from below: the visitor is scrolling down onto it.
+                line.style.transitionDelay = (queued++ * FADE_LINES.stagger) + 'ms';
+                line.classList.add('is-in');
+              } else {
+                // Came in from above: scrolling back up onto it.
+                instantly(line, true);
+              }
+            } else if (top >= floor && line.classList.contains('is-in')) {
+              // Gone back below the screen: ready to play again.
+              instantly(line, false);
+            }
+          });
+      }, { threshold: 0, rootMargin: '0px 0px -6% 0px' });
+
+      host.classList.add('is-armed');
+      lines.forEach(l => io.observe(l));
+    });
+  }
+
+  /* =====================================================================
      SCROLL CHOREOGRAPHY (GSAP ScrollTrigger — no scroll listeners)
      ===================================================================== */
   let heroProgress = 0;
@@ -2094,6 +2175,7 @@
     // Before the scroll triggers are measured, so they measure the split
     // text rather than the text it replaced.
     setupTextAnimate();
+    setupFadeLines();
     setupScroll();
     setupProjectStrip();
     setupFluidBackground('fluid-zone');
