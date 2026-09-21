@@ -1039,8 +1039,10 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   top: calc(var(--i, 0) * 20px);
   /* Sized to the screen as well as the column, so the last card still fits
-     below the five pinned above it on a short laptop. */
-  width: min(580px, 100%, calc((100vh - var(--stack-top) - 250px) * 1.42));
+     below the five pinned above it on a short laptop — but never below
+     260px. On a phone held sideways the screen-height term came out at
+     80px, and the certificates shrank to stamps. */
+  width: min(580px, 100%, max(260px, calc((100vh - var(--stack-top) - 250px) * 1.42)));
   margin: 0 auto;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -1051,7 +1053,7 @@ a { color: inherit; text-decoration: none; }
   will-change: transform;
 }
 @supports (height: 100svh) {
-  .cert-card { width: min(580px, 100%, calc((100svh - var(--stack-top) - 250px) * 1.42)); }
+  .cert-card { width: min(580px, 100%, max(260px, calc((100svh - var(--stack-top) - 250px) * 1.42))); }
 }
 
 /* The certificate image. contain, not cover: these are documents, and

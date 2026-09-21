@@ -467,7 +467,10 @@ export async function createPixelBlast(host, surface, options) {
   const io = new IntersectionObserver(entries => {
     visible = entries.some(e => e.isIntersecting);
   }, { threshold: 0 });
-  io.observe(surface);
+  // The canvas's own box, not the section's. Below the mobile width the
+  // layer is display:none, and a section still on screen kept a hidden
+  // field rendering every frame after a window was narrowed.
+  io.observe(host);
   const onVisibility = () => { hidden = document.hidden; };
   document.addEventListener('visibilitychange', onVisibility);
 
