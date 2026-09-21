@@ -309,15 +309,23 @@ export async function createFluidBackground(container, options) {
   const pointer = { x: 0.5, y: 0.5, dx: 0, dy: 0, active: false };
   let lastMove = -Infinity;
 
+  // The push is the pointer's own travel on screen, not the change in its
+  // position inside the section. The two differ as soon as the page
+  // scrolls: a cursor held still while the section scrolls past it has
+  // moved hundreds of pixels through the section, and the next nudge of
+  // the mouse used to fire all of that at once as one violent streak.
+  let lastClientX = 0, lastClientY = 0;
+
   function onMove(clientX, clientY) {
     const r = container.getBoundingClientRect();
-    const nx = (clientX - r.left) / r.width;
-    const ny = 1 - (clientY - r.top) / r.height;
+    if (!r.width || !r.height) return;
     if (pointer.active) {
-      pointer.dx = nx - pointer.x;
-      pointer.dy = ny - pointer.y;
+      pointer.dx = (clientX - lastClientX) / r.width;
+      pointer.dy = -(clientY - lastClientY) / r.height;
     }
-    pointer.x = nx; pointer.y = ny;
+    lastClientX = clientX; lastClientY = clientY;
+    pointer.x = (clientX - r.left) / r.width;
+    pointer.y = 1 - (clientY - r.top) / r.height;
     pointer.active = true;
     lastMove = performance.now();
   }
@@ -326,10 +334,17 @@ export async function createFluidBackground(container, options) {
   const onTouch = e => {
     if (e.touches && e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY);
   };
+  // A new finger is a new stroke. Carried on from where the last one
+  // lifted, a tap across the screen was read as a swipe the width of it.
+  const onTouchStart = e => {
+    pointer.active = false;
+    pointer.dx = pointer.dy = 0;
+    onTouch(e);
+  };
 
   window.addEventListener('mousemove', onMouse, { passive: true });
   window.addEventListener('touchmove', onTouch, { passive: true });
-  window.addEventListener('touchstart', onTouch, { passive: true });
+  window.addEventListener('touchstart', onTouchStart, { passive: true });
 
   // Autonomous driver: picks a target, eases toward it, picks another. Takes
   // over when the cursor has been still for a beat so the panel is never
@@ -467,7 +482,7 @@ export async function createFluidBackground(container, options) {
       io.disconnect();
       window.removeEventListener('mousemove', onMouse);
       window.removeEventListener('touchmove', onTouch);
-      window.removeEventListener('touchstart', onTouch);
+      window.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVisibility);
       canvas.removeEventListener('webglcontextlost', onLost);

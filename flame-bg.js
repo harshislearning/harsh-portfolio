@@ -207,29 +207,48 @@ export async function createFlameBackground(container, options) {
 
   /* ---- pointer ------------------------------------------------------- */
   // Held in CSS px with the origin at the bottom left, to match gl_FragCoord.
-  const pointer = { x: 0, y: 0, want: 0, ease: 0 };
+  // The pointer's screen position is what is stored; where that falls in the
+  // section is worked out every frame. Worked out only on mousemove, a
+  // cursor held still while the page scrolled kept the flame leaning at
+  // where it used to be, and scrolling the section out from under it left
+  // the lean on.
+  const pointer = { x: 0, y: 0, want: 0, ease: 0, clientX: 0, clientY: 0, down: false };
 
-  function onMove(clientX, clientY) {
-    if (!opts.pointer.enabled) return;
+  function place() {
     const r = container.getBoundingClientRect();
     if (!r.width || !r.height) return;
-    pointer.x = clientX - r.left;
-    pointer.y = r.height - (clientY - r.top);
+    pointer.x = pointer.clientX - r.left;
+    pointer.y = r.height - (pointer.clientY - r.top);
     // Inside the section, or close enough that leaving eases out instead of
     // dropping the lean on the boundary.
     const inside = pointer.x > -80 && pointer.x < r.width + 80 &&
                    pointer.y > -80 && pointer.y < r.height + 80;
-    pointer.want = inside ? 1 : 0;
+    pointer.want = pointer.down && inside ? 1 : 0;
   }
 
+  function onMove(clientX, clientY) {
+    if (!opts.pointer.enabled) return;
+    pointer.clientX = clientX;
+    pointer.clientY = clientY;
+    pointer.down = true;
+  }
+
+  // Gone: the cursor has left the window, or the finger has lifted. A touch
+  // has no cursor left behind to lean toward, so it used to stay leaning at
+  // the last tap for good.
+  const onGone = () => { pointer.down = false; };
   const onMouse = e => onMove(e.clientX, e.clientY);
   const onTouch = e => {
     if (e.touches && e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY);
   };
+  const onOut = e => { if (!e.relatedTarget) onGone(); };
 
   window.addEventListener('mousemove', onMouse, { passive: true });
   window.addEventListener('touchmove', onTouch, { passive: true });
   window.addEventListener('touchstart', onTouch, { passive: true });
+  window.addEventListener('touchend', onGone, { passive: true });
+  window.addEventListener('touchcancel', onGone, { passive: true });
+  document.addEventListener('mouseout', onOut);
 
   /* ---- loop ---------------------------------------------------------- */
   let raf = 0;
@@ -259,6 +278,7 @@ export async function createFlameBackground(container, options) {
     if (!visible || hidden || lost || !cssW) return;
 
     elapsed += dt * rate;
+    place();
     pointer.ease += (pointer.want - pointer.ease) * Math.min(1, dt * 4.5);
 
     material.uniforms.uTime.value = elapsed;
@@ -298,6 +318,9 @@ export async function createFlameBackground(container, options) {
       window.removeEventListener('mousemove', onMouse);
       window.removeEventListener('touchmove', onTouch);
       window.removeEventListener('touchstart', onTouch);
+      window.removeEventListener('touchend', onGone);
+      window.removeEventListener('touchcancel', onGone);
+      document.removeEventListener('mouseout', onOut);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVisibility);
       canvas.removeEventListener('webglcontextlost', onLost);
