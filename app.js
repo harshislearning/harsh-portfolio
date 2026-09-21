@@ -1579,7 +1579,6 @@
 
       hintOpen.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (swiping) { openProjectPopup(cards[active]); return; }
         setExpanded(expanded >= 0 ? -1 : active);
       });
 
@@ -1720,7 +1719,14 @@
         // Sideways only; a vertical move is the page being scrolled.
         if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(e.clientY - drag.y)) return;
         drag.on = true;
-        if (expanded >= 0) setExpanded(-1);
+        if (expanded >= 0) {
+          setExpanded(-1);
+          // Closing asks for the deck to be turned to the closed card, and
+          // that turn would fight the finger for the rest of the swipe.
+          cancelAnimationFrame(deckRaf);
+          deckRaf = 0;
+          pos = drag.from;
+        }
         try { grid.setPointerCapture(e.pointerId); } catch (err) { /* already gone */ }
         grid.classList.add('is-dragging');
       }
@@ -1803,7 +1809,6 @@
         if (e.target !== card) return;
         if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
         e.preventDefault();   // Space would otherwise page down
-        if (swiping) { openProjectPopup(card); return; }
         setExpanded(expanded === i ? -1 : i);
       });
 
@@ -1827,9 +1832,6 @@
           deckTo(nearestTurn(i), true);
           return;
         }
-        // On the deck the top card opens as a pop-up, full size, rather
-        // than growing in place inside a stack a phone's width across.
-        if (swiping) { openProjectPopup(card); return; }
         setExpanded(expanded === i ? -1 : i);
       });
     });
@@ -2071,37 +2073,6 @@
     return scroll;
   }
 
-  // A project card, opened full size over the page. The card is copied
-  // rather than moved, so the deck behind it is left exactly as it was.
-  let modalReturn = null;
-
-  function openProjectPopup(card) {
-    modalRoot.innerHTML = '';
-    const title = (card.querySelector('.proj-title') || {}).textContent || 'Project';
-
-    const backdrop = el('div', { class: 'modal-backdrop proj-pop-backdrop' });
-    const pop = el('div', { class: 'proj-pop', role: 'dialog', 'aria-modal': 'true', 'aria-label': title });
-    const scroll = el('div', { class: 'proj-pop-scroll' });
-
-    const big = card.cloneNode(true);
-    big.className = 'proj is-expanded';
-    ['style', 'tabindex', 'aria-expanded'].forEach(a => big.removeAttribute(a));
-    big.querySelectorAll('img').forEach(img => { img.loading = 'eager'; });
-    scroll.appendChild(big);
-
-    const close = el('button', { class: 'modal-close proj-pop-close', type: 'button', 'aria-label': 'Close' }, '✕');
-    close.addEventListener('click', closeModal);
-
-    pop.appendChild(scroll);
-    pop.appendChild(close);
-    backdrop.appendChild(pop);
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
-    modalRoot.appendChild(backdrop);
-    document.body.classList.add('modal-lock');
-    modalReturn = card;
-    close.focus({ preventScroll: true });
-  }
-
   function notice(host, title, detail) {
     host.innerHTML = '';
     const wrap = el('div', { class: 'modal-notice' });
@@ -2184,13 +2155,6 @@
     clearTimeout(pdfResizeT);
     modalRoot.innerHTML = '';
     document.body.classList.remove('modal-lock');
-    // Back to the card the pop-up was opened from, so a keyboard is not
-    // dropped at the top of the page.
-    if (modalReturn) {
-      const back = modalReturn;
-      modalReturn = null;
-      back.focus({ preventScroll: true });
-    }
   }
 
   /* =====================================================================
