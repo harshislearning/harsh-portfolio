@@ -855,10 +855,12 @@ a { color: inherit; text-decoration: none; }
   width: var(--strip-card-w);
   height: var(--strip-h);
   margin-left: calc(var(--strip-card-w) / -2);
-  /* Swiper's cards turn about their foot. */
+  /* Swiper's cards turn about their foot. No will-change or
+     backface-visibility: each asked for a GPU layer of its own for all six
+     cards, all the time, and an opened card is a tall one. iOS Safari has
+     a small budget for those, and once the deck had spent it the page
+     further down came up blank. */
   transform-origin: center bottom;
-  backface-visibility: hidden;
-  will-change: transform;
   transition: height 420ms var(--ease),
               border-color var(--t-base) var(--ease);
 }
@@ -1124,7 +1126,6 @@ a { color: inherit; text-decoration: none; }
   background: var(--bg-elev);
   box-shadow: 0 -14px 40px rgba(5, 5, 5, 0.55);
   transform-origin: top center;
-  will-change: transform;
 }
 @supports (height: 100svh) {
   .cert-card { width: min(580px, 100%, max(260px, calc((100svh - var(--stack-top) - 250px) * 1.42))); }
