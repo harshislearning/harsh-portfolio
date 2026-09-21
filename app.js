@@ -925,11 +925,6 @@
   function buildLayer(THREE, count, radius, size, texture, tight) {
     const geo = new THREE.BufferGeometry();
     const pos = new Float32Array(count * 3);
-    const col = new Float32Array(count * 3);
-
-    const near = new THREE.Color('#FFFFFF');
-    const far = new THREE.Color('#6A3BE8');
-    const tmp = new THREE.Color();
 
     for (let i = 0; i < count; i++) {
       // Even angular spread, random radius biased outward for a shell look.
@@ -941,18 +936,15 @@
       pos[i * 3]     = r * s * Math.cos(theta);
       pos[i * 3 + 1] = r * s * Math.sin(theta) * 0.82;   // slightly oblate
       pos[i * 3 + 2] = r * u;
-
-      tmp.copy(far).lerp(near, Math.random() * 0.85);
-      col[i * 3] = tmp.r; col[i * 3 + 1] = tmp.g; col[i * 3 + 2] = tmp.b;
     }
 
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
 
     const mat = new THREE.PointsMaterial({
       size: size,
       map: texture,
-      vertexColors: true,
+      // Every star is white.
+      color: 0xffffff,
       transparent: true,
       opacity: 0.9,
       depthWrite: false,
