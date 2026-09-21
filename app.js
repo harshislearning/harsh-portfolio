@@ -793,6 +793,14 @@
     const pWrap = projects.querySelector(':scope > .wrap');
     const cWrap = certs.querySelector(':scope > .wrap');
     if (!pWrap || !cWrap) return;
+    // Certifications fades its heading and each card's slot, never the
+    // wrapper around them. The slots are position: sticky, and Safari on
+    // iOS can stop painting sticky elements whose ancestor is animating
+    // opacity or transform: the heading came in and the whole card stack
+    // stayed blank underneath it. The heading's children rather than the
+    // heading, whose own reveal transition would drag behind every frame.
+    const cParts = () => Array.prototype.slice.call(
+      cWrap.querySelectorAll(':scope > .sec-head > *, .cert-slot'));
 
     // Paced to the scroll that set it off. At a fixed 0.85s a phone flick
     // carried the section to the middle of the screen while it was still
@@ -861,7 +869,7 @@
       // Down: Projects → Certifications, content rises from below.
       if (downArmed && last.certsTop > downLine && now.certsTop <= downLine) {
         downArmed = false;
-        play(cWrap, 1, velocity);
+        play(cParts(), 1, velocity);
       }
       // Up: Certifications → Projects, content drops from above.
       if (upArmed && last.projBottom < upLine && now.projBottom >= upLine) {
@@ -1694,10 +1702,12 @@
         const tX = p < 0 ? tXAdd * a : p > 0 ? -tXAdd * a : 0;
         const s = p < 0 ? 1 + (1 - scale) * p : 1 - (1 - scale) * p;
 
+        // Flat, not translate3d: Swiper's 100px of depth per card has no
+        // effect without a perspective -- the z-index does the stacking --
+        // and a 3D transform pins every card to a GPU layer of its own.
         card.style.transform =
-          'translate3d(' + tX.toFixed(3) + '%,' + tY.toFixed(3) + '%,' +
-          (-100 * a).toFixed(1) + 'px) rotateZ(' + rotate.toFixed(3) +
-          'deg) scale(' + s.toFixed(4) + ')';
+          'translate(' + tX.toFixed(3) + '%,' + tY.toFixed(3) + '%) rotate(' +
+          rotate.toFixed(3) + 'deg) scale(' + s.toFixed(4) + ')';
         card.style.zIndex = String(n - Math.abs(Math.round(p)));
         // Swiper's slide shadow: the further back, the darker.
         card.style.setProperty('--deck-shade', clamp01((a - 0.5) / 0.5).toFixed(3));
