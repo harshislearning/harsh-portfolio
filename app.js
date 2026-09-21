@@ -1929,6 +1929,9 @@
     edgeFade: 0.25
   };
 
+  // The mobile layout's widest screen — where the nav turns into a menu.
+  const MOBILE_MAX = 860;
+
   function setupPixelBlast() {
     const section = document.getElementById('certifications');
     if (!section || reduceMotion) return;
@@ -1963,7 +1966,15 @@
       io.disconnect();
       start();
     }, { rootMargin: '900px 0px' });
-    io.observe(section);
+
+    // Not on the mobile layout: there the section is its plain black. The
+    // CSS hides the layer below the same width, which also pauses a field
+    // that started on a wider window, since a hidden canvas is never on
+    // screen. It is only ever loaded once the layout is wide enough.
+    const wide = window.matchMedia('(min-width: ' + (MOBILE_MAX + 1) + 'px)');
+    const arm = () => { if (wide.matches) io.observe(section); };
+    arm();
+    if (wide.addEventListener) wide.addEventListener('change', arm);
   }
 
   /* =====================================================================

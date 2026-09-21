@@ -1012,6 +1012,10 @@ a { color: inherit; text-decoration: none; }
 @supports (height: 100svh) {
   .certs-bg-pin { height: 100svh; }
 }
+/* Not on the mobile layout (the nav's own breakpoint, MOBILE_MAX in app.js). */
+@media (max-width: 860px) {
+  .certs-bg { display: none; }
+}
 
 /* Certificates: a stack of cards (Skiper UI "Skiper16"). Each card sits in
    a sticky slot, so the cards pin 20px apart as the section scrolls and
