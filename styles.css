@@ -229,6 +229,12 @@ a { color: inherit; text-decoration: none; }
 }
 
 .btn-moving {
+  /* Set here as well as registered above. A browser without @property never
+     gets the registration's initial value, and a conic-gradient that reads
+     an undefined angle is invalid -- which throws out the whole background,
+     leaving the button as bare text with no border at all. Given a value,
+     it draws the comet standing still instead. */
+  --mg-angle: 0deg;
   position: relative;
   isolation: isolate;
   padding: 12px 25px;
@@ -272,6 +278,12 @@ a { color: inherit; text-decoration: none; }
       #FFFFFF 360deg) border-box; }
 
 @keyframes mgSpin { to { --mg-angle: 360deg; } }
+
+/* High-contrast modes drop backgrounds, and with them the gradient that is
+   the button's only border; give it a real one. */
+@media (forced-colors: active) {
+  .btn-moving { border-color: ButtonText; }
+}
 
 /* Held still, the comet stays put as a lit arc; the hover bloom remains. */
 @media (prefers-reduced-motion: reduce) {
