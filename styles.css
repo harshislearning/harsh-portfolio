@@ -746,42 +746,56 @@ a { color: inherit; text-decoration: none; }
    is never clipped by the container. */
 .proj-grid.is-strip .proj.is-expanded { height: var(--strip-h-full); }
 
-/* --- Phone carousel -----------------------------------------------------
-   No room to collapse and expand six cards inside a phone, and a widened
-   card there leaves no way back to the one before it. So every card keeps
-   its full size in one row you drag sideways, snapping card to card. The
-   cards are styled exactly as they are in the grid — only the layout
-   differs. */
+/* --- Phone deck ---------------------------------------------------------
+   Skiper UI "skiper48": Swiper's cards effect. Every card is dealt into one
+   stack in the middle of the row; JS fans the ones behind out to the sides
+   and swipes the top one away. The cards are styled exactly as they are in
+   the grid -- only the layout differs. */
 .proj-grid.is-swipe {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  display: block;
+  position: relative;
   height: var(--strip-h-box);
-  padding-inline: var(--swipe-pad);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
-  /* The swing is a real turn in depth, so the row is the viewport the
-     cards are seen through. */
-  perspective: 1200px;
+  /* The page still scrolls vertically under a finger; sideways is the deck's. */
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
   transition: height 420ms var(--ease);
 }
-.proj-grid.is-swipe::-webkit-scrollbar { display: none; }
+.proj-grid.is-swipe.is-dragging { cursor: grabbing; }
 
+/* Beats .reveal.is-in, whose transform transition would otherwise drag every
+   frame of the swipe out behind the finger. */
+.proj-grid.is-swipe .proj.reveal.is-in,
 .proj-grid.is-swipe .proj {
-  flex: 0 0 auto;
+  position: absolute;
+  top: 0;
+  left: 50%;
   width: var(--strip-card-w);
   height: var(--strip-h);
+  margin-left: calc(var(--strip-card-w) / -2);
+  /* Swiper's cards turn about their foot. */
+  transform-origin: center bottom;
   backface-visibility: hidden;
   will-change: transform;
   transition: height 420ms var(--ease),
-              border-color var(--t-base) var(--ease),
-              opacity 380ms var(--ease);
+              border-color var(--t-base) var(--ease);
 }
 .proj-grid.is-swipe .proj.is-expanded { height: var(--strip-h-full); }
-/* The lift belongs to a static grid; here it would just shiver as the row
+.proj-grid.is-swipe .proj img { -webkit-user-drag: none; pointer-events: none; }
+
+/* Swiper's slide shadow, darkening the cards further back. */
+.proj-grid.is-swipe .proj::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(4, 3, 8, 0.55);
+  opacity: var(--deck-shade, 0);
+  pointer-events: none;
+}
+
+/* The lift belongs to a static grid; here it would just shiver as the deck
    is dragged under the finger. */
 .proj-grid.is-swipe .proj:hover { transform: none; }
 
@@ -841,16 +855,6 @@ a { color: inherit; text-decoration: none; }
   background: var(--accent-soft);
 }
 .proj-hint:active { transform: scale(0.97); }
-
-/* Opening a card flattens the swing and closing restores it. That one
-   change eases; the swing itself never does, since it has to stay under
-   the finger. */
-.proj-grid.is-swipe.is-settling .proj {
-  transition: height 420ms var(--ease),
-              transform 320ms var(--ease),
-              border-color var(--t-base) var(--ease),
-              opacity 380ms var(--ease);
-}
 
 /* Beats .reveal.is-in, which would otherwise own the transition and drive
    the widening at the wrong speed. */
@@ -1294,6 +1298,40 @@ a { color: inherit; text-decoration: none; }
   font-size: 14px;
   font-weight: 600;
   color: #DDD3FF;
+}
+
+/* A project card opened from the phone deck: the card itself, full size,
+   popping up out of the page. The close button stays put while the card
+   scrolls under it. */
+.proj-pop {
+  position: relative;
+  width: min(560px, 100%);
+  animation: projPop 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.proj-pop-scroll {
+  max-height: min(90dvh, 920px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--r-panel);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+}
+.proj-pop .proj { cursor: default; border-color: var(--line-hi); }
+.proj-pop .proj:hover { transform: none; }
+.proj-pop-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  background: rgba(10, 9, 15, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+@keyframes projPop {
+  from { opacity: 0; transform: translateY(24px) scale(0.9); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .proj-pop { animation: none; }
 }
 
 .modal-notice {

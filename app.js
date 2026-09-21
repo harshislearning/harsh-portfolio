@@ -1317,25 +1317,28 @@
 
      A click, and only a click, opens the full card.
 
-     Phones get a swipe carousel instead. Six cards cannot collapse and
-     expand side by side in a phone's width, and a widening card there gives
-     no way back to the one you just left. So on a phone every card keeps
-     its full size, laid out in one horizontal row you drag left and right,
-     snapping card to card. A tap opens the card, as everywhere else.
+     Phones get a card deck instead. Six cards cannot collapse and expand
+     side by side in a phone's width, and a widening card there gives no
+     way back to the one you just left. So on a phone the cards are dealt
+     into one stack, full size, and swiped off the top one at a time, in
+     either direction, looping round. A tap opens the top card.
      ===================================================================== */
   const STRIP_GAP = 6;          // matches the reference's gap-1
-  const SWIPE_GAP = 12;
   const STRIP_SLICE_MIN = 40;   // narrowest a collapsed card may get
   const STRIP_SLICE_MAX = 96;
 
-  // The phone carousel's swing, from Skiper UI "skiper50" (Carousel_004 by
-  // @gurvinder-singh02), which drives Swiper's creative effect with
-  // prev/next translate ["±5%", 0, -200] and rotate ±100deg about the
-  // inner edge. Applied here straight to the scroll position instead, so
-  // the cards answer the finger rather than a library's own drag handling.
-  const SWIPE_ROTATE = 100;   // degrees at a full card's distance
-  const SWIPE_DEPTH = 200;    // px pushed back at that distance
-  const SWIPE_SHIFT = 5;      // % of the card's own width
+  // The phone deck, from Skiper UI "skiper48" (Carousel_002 by
+  // @gurvinder-singh02), which is Swiper's cards effect with loop on and
+  // 40px between slides. Swiper's own card maths is kept -- each card a
+  // further 8% out, 2deg round and 100px back than the one in front of it,
+  // and the card being swiped arcing up and away as it goes -- but driven
+  // here from the finger directly, since this site carries no Swiper.
+  const DECK = {
+    perSlideOffset: 8,    // % of a card's width, per card of distance
+    perSlideRotate: 2,    // deg, per card of distance
+    spaceBetween: 40,     // px of drag beyond a card's width to move one card
+    speed: 300            // ms to settle -- Swiper's default
+  };
 
   function stripCardWidth() {
     const w = window.innerWidth;
@@ -1399,7 +1402,7 @@
       grid.classList.toggle('has-expanded', i >= 0);
       applyHeight();
       paint();
-      if (swiping) { settle(); paintSwipe(); }
+      if (swiping) paintDeck();
       scrollActiveIntoView(true);
 
       // The measured height is taken in grid flow, which can be a line of
@@ -1462,43 +1465,29 @@
       return { compact: compact, each: each };
     }
 
-    // Where the row has to sit for card i to be in the middle of the view.
-    // Derived from the layout, never measured: a card's own box has been
-    // turned by the swing, so its rect is not where it started.
-    function centreTarget(i) {
-      const m = swipeMetrics;
-      if (!m) return 0;
-      const max = grid.scrollWidth - grid.clientWidth;
-      const want = m.pad + i * m.step + m.cardW / 2 - grid.clientWidth / 2;
-      return Math.max(0, Math.min(max, want));
-    }
-
-    // The strip widens a card in place, so nothing has to scroll. The
-    // carousel does: an opened card is brought to the middle of the view.
+    // The deck has no row to scroll: bringing a card forward is turning the
+    // deck to it.
     function scrollActiveIntoView(smooth) {
       if (!swiping) return;
-      grid.scrollTo({
-        left: centreTarget(expanded >= 0 ? expanded : active),
-        behavior: smooth && !reduceMotion ? 'smooth' : 'auto'
-      });
+      deckTo(nearestTurn(expanded >= 0 ? expanded : active), smooth);
     }
 
     function teardown() {
       grid.classList.remove('is-strip', 'is-swipe');
       ['--strip-h', '--strip-h-full', '--strip-h-box', '--strip-card-w',
-       '--strip-slice', '--strip-media-h', '--swipe-pad']
+       '--strip-slice', '--strip-media-h']
         .forEach(p => grid.style.removeProperty(p));
-      grid.classList.remove('is-settling');
       cards.forEach(c => {
         c.classList.remove('is-active');
         c.style.transform = '';
-        c.style.transformOrigin = '';
         c.style.zIndex = '';
+        c.style.opacity = '';
+        c.style.removeProperty('--deck-shade');
       });
-      grid.scrollLeft = 0;
+      cancelAnimationFrame(deckRaf);
+      deckRaf = 0;
       stripped = false;
       swiping = false;
-      swipeMetrics = null;
       hideHints();
     }
 
@@ -1514,7 +1503,7 @@
 
       // Not enough width for a row of slices plus a readable open card: the
       // phone carousel takes over instead of squeezing anything.
-      if (slice < STRIP_SLICE_MIN) return buildSwipe(avail);
+      if (slice < STRIP_SLICE_MIN) return buildDeck(avail);
 
       heights = measureHeights(cardW, cardW);
       if (!heights.compact) return;
@@ -1537,31 +1526,30 @@
       refreshScroll();   // the section just lost most of its height
     }
 
-    // Phone carousel: every card at full size in one draggable row, snapping
-    // card to card, so going back to an earlier card is the same gesture as
-    // going forward. Nothing collapses, so nothing has to be recovered.
-    let swipeMetrics = null;
+    // Phone deck: every card at full size, dealt into one stack.
+    let deckW = 0;
+    let pos = 0;        // the card on top, as a continuous index -- unbounded,
+                        // so the deck loops without ever jumping
+    let heading = 0;    // +1 turning forward, -1 back, 0 at rest
 
-    function buildSwipe(avail) {
-      const cardW = Math.max(200, Math.min(340, avail - 28));
+    function buildDeck(avail) {
+      // Narrower than the column, so the cards fanned out behind the top one
+      // have somewhere to show.
+      deckW = Math.max(200, Math.min(320, avail - 48));
 
-      heights = measureHeights(cardW, cardW);
+      heights = measureHeights(deckW, deckW);
       if (!heights.compact) return;
 
-      const pad = Math.max(0, Math.round((avail - cardW) / 2));
-
-      grid.style.setProperty('--strip-card-w', cardW + 'px');
+      grid.style.setProperty('--strip-card-w', deckW + 'px');
       grid.style.setProperty('--strip-h', Math.ceil(heights.compact) + 'px');
-      // Side padding of half the slack, so the first and last card can sit
-      // in the middle of the view like every other one.
-      grid.style.setProperty('--swipe-pad', pad + 'px');
 
       grid.classList.add('is-swipe');
       swiping = true;
-      swipeMetrics = { cardW: cardW, pad: pad, step: cardW + SWIPE_GAP };
+      pos = active;
+      heading = 0;
       applyHeight();
       paint();
-      paintSwipe();
+      paintDeck();
       showHints('swipe');
       refreshScroll();   // the section just lost most of its height
     }
@@ -1591,15 +1579,16 @@
 
       hintOpen.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (swiping) { openProjectPopup(cards[active]); return; }
         setExpanded(expanded >= 0 ? -1 : active);
       });
 
       hintNext.addEventListener('click', (e) => {
         e.stopPropagation();
         if (expanded >= 0) setExpanded(-1);
+        if (swiping) { deckTo(Math.round(pos) + 1, true); return; }
         active = (active + 1) % cards.length;
         paint();
-        scrollActiveIntoView(true);
       });
 
       hints.appendChild(hintOpen);
@@ -1621,96 +1610,152 @@
       if (hints) hints.hidden = true;
     }
 
-    // Each card's swing is read from where it sits relative to the middle of
-    // the view: 0 at the centre, a full turn one card's distance away. The
-    // geometry is computed from the layout rather than measured, since a
-    // card's own box has already been rotated by the previous frame.
-    function paintSwipe() {
-      if (!swiping || !swipeMetrics) return;
-      const m = swipeMetrics;
-      const mid = grid.scrollLeft + grid.clientWidth / 2;
-      const flat = expanded >= 0;
+    // How far card i is from the top of the deck, the way Swiper counts a
+    // slide's progress: 0 on top, negative for the cards still to come,
+    // positive for the ones already swiped past. Wrapped, since it loops.
+    function deckProgress(i) {
+      const n = cards.length;
+      let d = ((pos - i) % n + n) % n;
+      if (d > n / 2) d -= n;
+      return d;
+    }
 
+    // Swiper's cards effect, value for value, with its translate measured in
+    // the card's own width and height.
+    function paintDeck() {
+      if (!swiping) return;
+      const n = cards.length;
       cards.forEach((card, i) => {
-        if (flat) {
-          card.style.transform = '';
-          card.style.transformOrigin = '';
-          card.style.zIndex = '';
-          return;
-        }
-        const centre = m.pad + i * m.step + m.cardW / 2;
-        // Clamped at one card's distance, so everything further out holds
-        // the same turn and stacks behind, as the reference's does.
-        const p = clamp1((centre - mid) / m.step);
-        const t = Math.abs(p);
-        const dir = p < 0 ? 1 : -1;   // the card turns away from the centre
+        const raw = deckProgress(i);
+        const p = Math.max(-4, Math.min(4, raw));
+        const a = Math.abs(p);
+        let rotate = -DECK.perSlideRotate * p;
+        let scale = 1;
+        let tXAdd = DECK.perSlideOffset - a * 0.75;
+        let tY = 0;
 
-        card.style.transformOrigin = p < 0 ? 'left center' : 'right center';
+        // The card leaving the top, whichever way it is going, lifts and
+        // arcs out and shrinks as it passes the halfway point.
+        const leaving = a < 1 && ((heading > 0 && p > 0) || (heading < 0 && p < 0));
+        if (leaving) {
+          const sub = Math.pow(1 - Math.abs((a - 0.5) / 0.5), 0.5);
+          rotate += -28 * p * sub;
+          scale += -0.5 * sub;
+          tXAdd += 96 * sub;
+          tY = -25 * sub * a;
+        }
+
+        const tX = p < 0 ? tXAdd * a : p > 0 ? -tXAdd * a : 0;
+        const s = p < 0 ? 1 + (1 - scale) * p : 1 - (1 - scale) * p;
+
         card.style.transform =
-          'translate3d(' + (-dir * SWIPE_SHIFT * t).toFixed(2) + '%, 0, ' +
-          (-SWIPE_DEPTH * t).toFixed(1) + 'px) rotateY(' +
-          (dir * SWIPE_ROTATE * t).toFixed(2) + 'deg)';
-        card.style.zIndex = String(Math.round(100 - t * 50));
+          'translate3d(' + tX.toFixed(3) + '%,' + tY.toFixed(3) + '%,' +
+          (-100 * a).toFixed(1) + 'px) rotateZ(' + rotate.toFixed(3) +
+          'deg) scale(' + s.toFixed(4) + ')';
+        card.style.zIndex = String(n - Math.abs(Math.round(p)));
+        // Swiper's slide shadow: the further back, the darker.
+        card.style.setProperty('--deck-shade', clamp01((a - 0.5) / 0.5).toFixed(3));
+        // A looping deck moves its back card from one side to the other as
+        // it wraps. It is faded out at the very back so that is never seen.
+        // Left alone otherwise, so the section's own reveal still fades it in.
+        const fade = clamp01(n / 2 - Math.abs(raw) + 0.5);
+        card.style.opacity = fade < 1 ? fade.toFixed(3) : '';
       });
     }
 
-    function clamp1(v) { return v < -1 ? -1 : v > 1 ? 1 : v; }
-
-    let swipeRaf = 0;
-    grid.addEventListener('scroll', () => {
-      if (!swiping) return;
-      if (!swipeRaf) {
-        swipeRaf = requestAnimationFrame(() => { swipeRaf = 0; paintSwipe(); });
-      }
-      snapSoon();
-    }, { passive: true });
-
-    // Snapping is done here rather than with CSS scroll-snap. Snap points
-    // are taken from a card's rendered box, and the swing has already
-    // turned that box away, so CSS would snap to the wrong places. This
-    // waits for the drag and its momentum to finish, then eases the nearest
-    // card to the middle.
-    let snapTimer = 0;
-    let holding = false;
-
-    function nearestIndex() {
-      const m = swipeMetrics;
-      if (!m) return 0;
-      const mid = grid.scrollLeft + grid.clientWidth / 2;
-      return Math.max(0, Math.min(cards.length - 1,
-        Math.round((mid - m.pad - m.cardW / 2) / m.step)));
+    // The turn that brings card i to the top by the shortest way round.
+    function nearestTurn(i) {
+      return pos - deckProgress(i);
     }
 
-    function snapSoon() {
-      clearTimeout(snapTimer);
-      snapTimer = setTimeout(() => {
-        if (!swiping || holding || expanded >= 0) return;
-        const i = nearestIndex();
-        active = i;
-        const target = centreTarget(i);
-        if (Math.abs(grid.scrollLeft - target) < 1.5) return;
-        grid.scrollTo({
-          left: target,
-          behavior: reduceMotion ? 'auto' : 'smooth'
-        });
-      }, 140);
+    let deckRaf = 0;
+    function deckTo(target, smooth) {
+      cancelAnimationFrame(deckRaf);
+      deckRaf = 0;
+      const from = pos;
+      const n = cards.length;
+      const settleAt = () => {
+        pos = target;
+        heading = 0;
+        active = ((Math.round(target) % n) + n) % n;
+        paint();
+        paintDeck();
+      };
+      if (!smooth || reduceMotion || Math.abs(target - from) < 0.001) { settleAt(); return; }
+      heading = target > from ? 1 : -1;
+      const t0 = performance.now();
+      const step = (now) => {
+        const k = Math.min(1, (now - t0) / DECK.speed);
+        // Eased out, the way a released card slows into place.
+        pos = from + (target - from) * (1 - Math.pow(1 - k, 3));
+        paintDeck();
+        if (k < 1) deckRaf = requestAnimationFrame(step);
+        else { deckRaf = 0; settleAt(); }
+      };
+      deckRaf = requestAnimationFrame(step);
     }
 
-    // A finger still on the glass is still dragging, momentum or not.
-    grid.addEventListener('pointerdown', () => { holding = true; }, true);
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => {
-      grid.addEventListener(ev, () => { holding = false; snapSoon(); }, true);
+    // Dragging: the deck follows the finger one to one -- a card's width
+    // plus the reference's 40px of travel turns it by one card -- and a
+    // release settles on the nearest card, or on the next one for a quick
+    // flick, as Swiper does.
+    const drag = { id: -1, x: 0, y: 0, from: 0, t: 0, lastX: 0, on: false };
+
+    grid.addEventListener('pointerdown', (e) => {
+      if (!swiping || e.button > 0 || e.target.closest('a')) return;
+      cancelAnimationFrame(deckRaf);
+      deckRaf = 0;
+      drag.id = e.pointerId;
+      drag.x = drag.lastX = e.clientX;
+      drag.y = e.clientY;
+      drag.from = pos;
+      drag.t = performance.now();
+      drag.on = false;
     });
 
-    // Opening or closing a card flattens or restores the swing, and that one
-    // change should ease rather than jump. Dragging must not, so the
-    // transition is only in place while it settles.
-    let settleTimer = 0;
-    function settle() {
-      grid.classList.add('is-settling');
-      clearTimeout(settleTimer);
-      settleTimer = setTimeout(() => grid.classList.remove('is-settling'), 400);
+    grid.addEventListener('pointermove', (e) => {
+      if (!swiping || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x;
+      if (!drag.on) {
+        // Sideways only; a vertical move is the page being scrolled.
+        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(e.clientY - drag.y)) return;
+        drag.on = true;
+        if (expanded >= 0) setExpanded(-1);
+        try { grid.setPointerCapture(e.pointerId); } catch (err) { /* already gone */ }
+        grid.classList.add('is-dragging');
+      }
+      const move = e.clientX - drag.lastX;
+      if (move) heading = move < 0 ? 1 : -1;
+      drag.lastX = e.clientX;
+      pos = drag.from - dx / (deckW + DECK.spaceBetween);
+      paintDeck();
+    });
+
+    function endDrag(e) {
+      if (e.pointerId !== drag.id) return;
+      drag.id = -1;
+      grid.classList.remove('is-dragging');
+      if (!drag.on) return;
+      drag.on = false;
+      const moved = pos - drag.from;
+      const quick = performance.now() - drag.t < 300;
+      let target = Math.round(pos);
+      if (quick && Math.abs(moved) > 0.04) target = Math.round(drag.from) + (moved > 0 ? 1 : -1);
+      deckTo(target, true);
     }
+    grid.addEventListener('pointerup', endDrag);
+    grid.addEventListener('pointercancel', endDrag);
+
+    // Arrow keys turn the deck while focus is inside it.
+    grid.addEventListener('keydown', (e) => {
+      if (!swiping || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+      e.preventDefault();
+      if (expanded >= 0) setExpanded(-1);
+      const next = Math.round(pos) + (e.key === 'ArrowRight' ? 1 : -1);
+      deckTo(next, true);
+      const card = cards[((next % cards.length) + cards.length) % cards.length];
+      if (card) card.focus({ preventScroll: true });
+    });
 
     // A swipe that ends on a card still fires a click in some browsers, and
     // opening a card the visitor was only dragging past would be wrong.
@@ -1734,7 +1779,10 @@
       // Hover widens a card. No pointerleave reset: the last card pointed at
       // stays open, exactly as in the reference.
       card.addEventListener('pointerenter', (e) => {
-        if (e.pointerType === 'touch') return;
+        // The deck turns only when it is swiped: a mouse passing over a card
+        // fanned out behind the top one used to turn the deck to it,
+        // fighting the drag it was in the middle of.
+        if (e.pointerType === 'touch' || swiping) return;
         setActive(i);
       });
 
@@ -1742,7 +1790,12 @@
       // 46px slice. The card itself carries the tabindex: nothing inside a
       // closed one is focusable, since the GitHub link is display:none until
       // the card opens.
-      card.addEventListener('focusin', () => setActive(i));
+      card.addEventListener('focusin', () => {
+        // A press focuses the card it lands on; on the deck that press is
+        // the start of a swipe or a tap, which decide for themselves.
+        if (swiping && drag.id !== -1) return;
+        setActive(i);
+      });
 
       // Enter and Space open and close it, the way the click does. Only when
       // the card itself holds focus — the link inside keeps its own keys.
@@ -1750,6 +1803,7 @@
         if (e.target !== card) return;
         if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
         e.preventDefault();   // Space would otherwise page down
+        if (swiping) { openProjectPopup(card); return; }
         setExpanded(expanded === i ? -1 : i);
       });
 
@@ -1766,6 +1820,16 @@
           setActive(i);
           return;
         }
+        // On the deck, a card peeking out from behind is brought to the top
+        // first; only the top card opens.
+        if (swiping && Math.abs(deckProgress(i)) > 0.01) {
+          if (expanded >= 0) setExpanded(-1);
+          deckTo(nearestTurn(i), true);
+          return;
+        }
+        // On the deck the top card opens as a pop-up, full size, rather
+        // than growing in place inside a stack a phone's width across.
+        if (swiping) { openProjectPopup(card); return; }
         setExpanded(expanded === i ? -1 : i);
       });
     });
@@ -2007,6 +2071,37 @@
     return scroll;
   }
 
+  // A project card, opened full size over the page. The card is copied
+  // rather than moved, so the deck behind it is left exactly as it was.
+  let modalReturn = null;
+
+  function openProjectPopup(card) {
+    modalRoot.innerHTML = '';
+    const title = (card.querySelector('.proj-title') || {}).textContent || 'Project';
+
+    const backdrop = el('div', { class: 'modal-backdrop proj-pop-backdrop' });
+    const pop = el('div', { class: 'proj-pop', role: 'dialog', 'aria-modal': 'true', 'aria-label': title });
+    const scroll = el('div', { class: 'proj-pop-scroll' });
+
+    const big = card.cloneNode(true);
+    big.className = 'proj is-expanded';
+    ['style', 'tabindex', 'aria-expanded'].forEach(a => big.removeAttribute(a));
+    big.querySelectorAll('img').forEach(img => { img.loading = 'eager'; });
+    scroll.appendChild(big);
+
+    const close = el('button', { class: 'modal-close proj-pop-close', type: 'button', 'aria-label': 'Close' }, '✕');
+    close.addEventListener('click', closeModal);
+
+    pop.appendChild(scroll);
+    pop.appendChild(close);
+    backdrop.appendChild(pop);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+    modalRoot.appendChild(backdrop);
+    document.body.classList.add('modal-lock');
+    modalReturn = card;
+    close.focus({ preventScroll: true });
+  }
+
   function notice(host, title, detail) {
     host.innerHTML = '';
     const wrap = el('div', { class: 'modal-notice' });
@@ -2089,6 +2184,13 @@
     clearTimeout(pdfResizeT);
     modalRoot.innerHTML = '';
     document.body.classList.remove('modal-lock');
+    // Back to the card the pop-up was opened from, so a keyboard is not
+    // dropped at the top of the page.
+    if (modalReturn) {
+      const back = modalReturn;
+      modalReturn = null;
+      back.focus({ preventScroll: true });
+    }
   }
 
   /* =====================================================================
