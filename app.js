@@ -502,78 +502,102 @@
   }
 
   /* =====================================================================
-     SKEW-IN, PER LINE
+     TEXT ANIMATE — slide left, by character
 
-     Reference: Originkit "Skew In Text Effect", which skews a whole block
-     in from the left. A heading is one short line and takes that as it is.
-     A paragraph is not: sheared as one block it slides, where line by line
-     it assembles — so the lines are split out here and given a stagger.
+     Reference: Magic UI "TextAnimate" with animation="slideLeft" and
+     by="character". Its values are kept: each character starts 20px to
+     the right at zero opacity and slides into place over 300ms, 30ms after
+     the one before it, and it replays every time the text comes back into
+     view — scrolling down onto it or back up to it — because the
+     component's once defaults to false.
 
-     The split is by rendered line, not by markup: every word is wrapped,
-     measured, and the ones sharing a vertical position are gathered into
-     one line. That has to be redone whenever the text rewraps, so it is
-     rebuilt from the original string on resize and once the web font has
-     landed, rather than re-measuring wrappers built from the last pass.
+     Two departures, both about length. The component splits the string
+     into bare characters, which lets a long paragraph break in the middle
+     of a word: every character is its own inline box. Here the characters
+     sit inside a no-wrap box per word, so the text wraps exactly where it
+     did. And 30ms a character suits the component's demos, which are a
+     few words long; across a ~200-character paragraph it is a six-second
+     crawl. The stagger is kept but capped, so no block takes longer than
+     TEXT_ANIMATE.spread to finish arriving. "About Me" is short enough to
+     get the full 30ms.
      ===================================================================== */
-  const SKEW_LINE_STAGGER = 90;   // ms between one line and the next
+  const TEXT_ANIMATE = {
+    stagger: 30,    // ms between characters — the component's own
+    spread: 1200    // ms — the longest a whole block may take to arrive
+  };
 
-  function setupSkewLines() {
-    const hosts = Array.prototype.slice.call(document.querySelectorAll('.skew-lines'));
-    if (!hosts.length) return;
+  function setupTextAnimate() {
+    const hosts = Array.prototype.slice.call(document.querySelectorAll('.text-animate'));
+    // Reduced motion leaves the text as authored: nothing is split, so
+    // nothing can be left hidden.
+    if (!hosts.length || reduceMotion) return;
 
     hosts.forEach(host => {
-      const node = host.querySelector('p') || host;
-      // Kept, because each pass starts from the text again. Measuring a
-      // node that has already been split measures the line wrappers.
-      const source = node.textContent.replace(/\s+/g, ' ').trim();
-      if (!source) return;
+      const text = host.textContent.replace(/\s+/g, ' ').trim();
+      if (!text) return;
 
-      function split() {
-        const words = source.split(' ');
+      const chars = Array.from(text.replace(/ /g, ''));
+      const step = Math.min(TEXT_ANIMATE.stagger,
+        TEXT_ANIMATE.spread / Math.max(1, chars.length - 1));
 
-        node.textContent = '';
-        const marks = words.map((w, i) => {
-          const s = el('span');
-          s.textContent = i < words.length - 1 ? w + ' ' : w;
-          node.appendChild(s);
-          return s;
-        });
-
-        // Words that share a top are on the same rendered line.
-        const lines = [];
-        let top = null;
-        marks.forEach(s => {
-          const t = Math.round(s.offsetTop);
-          if (top === null || t !== top) { lines.push([]); top = t; }
-          lines[lines.length - 1].push(s.textContent);
-        });
-
-        node.textContent = '';
-        lines.forEach((words, i) => {
-          const line = el('span', { class: 'skew-line' });
-          line.style.transitionDelay = (i * SKEW_LINE_STAGGER) + 'ms';
-          // The trailing space stays. Blocks are concatenated with nothing
-          // between them, so trimming it welds the last word of one line to
-          // the first of the next for anything reading the text rather than
-          // looking at it — copy and paste, and a screen reader. At the end
-          // of a line box the space collapses, so it costs nothing.
-          line.textContent = words.join('');
-          node.appendChild(line);
-        });
-
-        host.classList.add('is-split');
+      // Split into a letter per box, the text stops being a sentence to a
+      // screen reader: the paragraph dropped out of the accessibility tree
+      // as a run of single characters. So the sentence is kept whole for
+      // assistive tech and the animated copy is hidden from it. The whole
+      // copy is also the one that cannot be selected, so copying the
+      // paragraph gets the visible letters once rather than the text twice.
+      //
+      // A heading can simply be labelled, and must be: its name is built
+      // from its contents, so a hidden copy inside it came out as
+      // "About MeAbout Me". A paragraph cannot carry a label reliably, so
+      // it keeps the hidden copy.
+      host.textContent = '';
+      const shown = el('span', { 'aria-hidden': 'true' });
+      if (/^H[1-6]$/.test(host.tagName)) {
+        host.setAttribute('aria-label', text);
+      } else {
+        const spoken = el('span', { class: 'ta-sr' });
+        spoken.textContent = text;
+        host.appendChild(spoken);
       }
+      host.appendChild(shown);
 
-      split();
+      let n = 0;
+      const words = text.split(' ');
+      words.forEach((word, wi) => {
+        const box = el('span', { class: 'ta-word' });
+        // Array.from walks code points, so an accented letter or a symbol
+        // made of a surrogate pair stays one glyph rather than two halves.
+        Array.from(word).forEach(ch => {
+          const c = el('span', { class: 'ta-char' });
+          c.textContent = ch;
+          c.style.transitionDelay = Math.round(n * step) + 'ms';
+          box.appendChild(c);
+          n++;
+        });
+        shown.appendChild(box);
+        // A real space between words, so the line still breaks there and
+        // copied text still reads as a sentence.
+        if (wi < words.length - 1) shown.appendChild(document.createTextNode(' '));
+      });
+      host.classList.add('is-split');
 
-      let t = 0;
-      const requeue = () => { clearTimeout(t); t = setTimeout(split, 180); };
-      window.addEventListener('resize', requeue);
-      // Measured in whatever font was on screen at the time. If that was the
-      // fallback, every line break is wrong the moment the real one lands.
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(split).catch(() => {});
-      }
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting)) {
+          host.classList.add('is-in');
+        } else if (host.classList.contains('is-in')) {
+          // Back to the start with no transition, so the next entry plays
+          // from the top rather than from wherever a staggered reverse had
+          // got to — scrolling away and straight back would otherwise
+          // leave half the characters never having left.
+          host.classList.add('ta-reset');
+          host.classList.remove('is-in');
+          // eslint-disable-next-line no-unused-expressions
+          host.offsetWidth;
+          host.classList.remove('ta-reset');
+        }
+      }, { threshold: 0 });
+      io.observe(host);
     });
   }
 
@@ -583,12 +607,7 @@
   let heroProgress = 0;
 
   function setupScroll() {
-    // The skew-in variants ride the same batch: a different arrival, but
-    // still "add is-in when this scrolls into view", and putting them
-    // through one mechanism keeps them staggered with what is around them.
-    const reveals = Array.prototype.slice.call(
-      document.querySelectorAll('.reveal, .skew-in, .skew-lines')
-    );
+    const reveals = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
 
     if (reduceMotion || !window.gsap || !window.ScrollTrigger) {
       reveals.forEach(n => n.classList.add('is-in'));
@@ -1971,9 +1990,9 @@
     setupNav();
 
     setupHeroSwap();
-    // Before the scroll batch, so the lines exist to be revealed and the
-    // triggers are measured against the split paragraph.
-    setupSkewLines();
+    // Before the scroll triggers are measured, so they measure the split
+    // text rather than the text it replaced.
+    setupTextAnimate();
     setupScroll();
     setupProjectStrip();
     setupFluidBackground('fluid-zone');

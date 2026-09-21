@@ -1401,55 +1401,47 @@ body.js .reveal.is-in {
   transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
 
-/* --- Skew-in ------------------------------------------------------------
-   Reference: Originkit "Skew In Text Effect". The block starts skewed and
-   pushed to the left at zero opacity and settles square as it scrolls in.
-   Its own start values are kept — 30deg of skew, 100px of travel, from
-   transparent — and it animates the whole text block, as the component
-   does, rather than per word or per letter.
+/* --- Text animate: slide left, by character -----------------------------
+   Reference: Magic UI TextAnimate, animation="slideLeft" by="character".
+   Each character starts 20px to the right at zero opacity and slides into
+   place over the component's 300ms; JS sets the per-character delay and
+   toggles .is-in as the text enters and leaves the view. Nothing is hidden
+   until the text has been split, so a script that never runs leaves it as
+   authored.
 
-   The departure is the timing. The component springs over 167ms, which on
-   one word is a snap and on three lines of body copy is a flicker you read
-   as a glitch rather than as a movement; this is the same gesture with a
-   spring curve, given long enough to be seen.
+   A no-wrap box per word, with real spaces between them, keeps the line
+   breaks where the unsplit text had them. The characters have to be
+   inline-block — a transform does nothing to an inline box. */
+.ta-word { display: inline-block; white-space: nowrap; }
+.ta-char { display: inline-block; }
 
-   Same body.js guard as .reveal: if the script never runs, the text is
-   simply there. The 100px of travel is held by overflow-x: clip on body,
-   so it cannot widen the page on a narrow screen. */
-.skew-in { opacity: 1; }
-body.js .skew-in {
+/* The whole sentence, for assistive tech only; the animated letters beside
+   it are aria-hidden. Unselectable, so a copy takes the visible letters
+   once instead of the text twice. */
+.ta-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body.js .text-animate.is-split .ta-char {
   opacity: 0;
-  transform: skewX(30deg) translateX(-100px);
+  transform: translateX(20px);
+  transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1),
+              transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-body.js .skew-in.is-in {
-  opacity: 1;
-  transform: none;
-  transition: opacity 420ms var(--ease),
-              transform 620ms cubic-bezier(0.22, 1.12, 0.36, 1);
-}
-
-/* A heading is one short line, which is what the component was built for,
-   so it keeps the snap: near enough the component's own 167ms. */
-body.js .skew-in.skew-quick.is-in {
-  transition: opacity 150ms var(--ease),
-              transform 210ms cubic-bezier(0.22, 1.12, 0.36, 1);
-}
-
-/* Per line. JS wraps each rendered line and sets its delay; the host still
-   takes .is-in from the same scroll batch. Nothing is hidden until the
-   split has happened, so a script that never runs leaves the paragraph
-   exactly as it was. */
-body.js .skew-lines.is-split .skew-line {
-  display: block;
-  opacity: 0;
-  transform: skewX(30deg) translateX(-100px);
-}
-body.js .skew-lines.is-split.is-in .skew-line {
-  opacity: 1;
-  transform: none;
-  transition: opacity 380ms var(--ease),
-              transform 560ms cubic-bezier(0.22, 1.12, 0.36, 1);
-}
+body.js .text-animate.is-split.is-in .ta-char { opacity: 1; transform: none; }
+/* Leaving the view resets in one step rather than playing out a reverse. */
+body.js .text-animate.ta-reset .ta-char { transition: none; }
 
 /* ============================ RESPONSIVE ================================= */
 
@@ -1573,9 +1565,7 @@ body.js .skew-lines.is-split.is-in .skew-line {
     transition-duration: 0.001ms !important;
   }
 
-  body.js .reveal,
-  body.js .skew-in,
-  body.js .skew-lines.is-split .skew-line { opacity: 1; transform: none; }
+  body.js .reveal { opacity: 1; transform: none; }
   .orbit-ring-a { animation: none; }
   .hero-portrait { will-change: auto; }
 }
