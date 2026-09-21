@@ -4,438 +4,400 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Harsh Patil | Data Science &amp; AI</title>
-  <meta name="description" content="Portfolio of Harsh Patil — Data Science professional specializing in Machine Learning, Generative AI, RAG systems, and Data Analytics.">
+  <meta name="description" content="Portfolio of Harsh Patil, a Data Science professional specializing in Machine Learning, Generative AI, RAG systems, and Data Analytics.">
 
-  <!-- Fonts -->
+  <!-- Fonts: Space Grotesk (display) / Plus Jakarta Sans (body) / JetBrains Mono (numerals) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="styles.css">
 </head>
-<body class="loading-state">
+<body>
 
-  <!-- PRELOADER -->
-  <div id="preloader" class="preloader">
-    <div class="preloader-content">
-      <div class="preloader-avatar">HP</div>
-      <div class="progress-bar-container">
-        <div class="progress-bar-glow"></div>
-        <div id="preloader-bar" class="progress-bar-fill" style="width: 0%;"></div>
-      </div>
-      <div class="preloader-meta">
-        <span id="preloader-percent">0%</span>
-      </div>
-    </div>
-  </div>
+  <!-- Ambient grain. Fixed + pointer-events:none so it never repaints on scroll. -->
+  <div class="grain" aria-hidden="true"></div>
 
-  <!-- AMBIENT SCANLINES & NOISE -->
-  <div class="cyber-overlay"></div>
-  <div class="cyber-grid"></div>
+  <a href="#home" class="skip-link">Skip to content</a>
 
-  <!-- FIXED CANVAS VIEWPORT -->
-  <div class="canvas-container" id="canvas-wrapper">
-    <canvas id="animation-canvas"></canvas>
-    <div class="canvas-vignette"></div>
-  </div>
-
-  <!-- FLOATING NAVIGATION BAR -->
-  <header class="navbar-wrapper">
-    <nav class="navbar glass-navbar">
-      <!-- Left: Logo / Brand -->
-      <a href="#home" class="nav-brand" data-nav="home">
-        <div class="brand-badge">HP</div>
+  <!-- ==================== NAVIGATION ==================== -->
+  <header class="nav-wrap">
+    <nav class="nav" aria-label="Primary">
+      <a href="#home" class="brand" data-nav="home">
+        <span class="brand-mark">HP</span>
         <span class="brand-name">Harsh Patil</span>
       </a>
 
-      <!-- Center: Navigation Links -->
-      <div class="nav-menu" id="nav-menu">
-        <a href="#home" class="nav-link active" data-nav="home">
-          <span>Home</span>
-          <div class="active-indicator"></div>
-        </a>
-        <a href="#about" class="nav-link" data-nav="about">
-          <span>About</span>
-          <div class="active-indicator"></div>
-        </a>
-        <a href="#projects" class="nav-link" data-nav="projects">
-          <span>Projects</span>
-          <div class="active-indicator"></div>
-        </a>
-        <a href="#certifications" class="nav-link" data-nav="certifications">
-          <span>Certifications</span>
-          <div class="active-indicator"></div>
-        </a>
-        <a href="#contact" class="nav-link" data-nav="contact">
-          <span>Contact</span>
-          <div class="active-indicator"></div>
-        </a>
+      <div class="nav-links" id="nav-links">
+        <a href="#home" class="nav-link is-active" data-nav="home">Home</a>
+        <a href="#about" class="nav-link" data-nav="about">About</a>
+        <a href="#experience" class="nav-link" data-nav="experience">Experience</a>
+        <a href="#projects" class="nav-link" data-nav="projects">Projects</a>
+        <a href="#certifications" class="nav-link" data-nav="certifications">Certifications</a>
+        <a href="#contact" class="nav-link" data-nav="contact">Contact</a>
       </div>
 
-      <!-- Right: Action Button -->
-      <div class="nav-action">
-        <a href="uploads/Harsh_Patil_Resume.pdf" class="btn-resume" data-action="resume">
-          <span>View Resume</span>
-        </a>
-        <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle Navigation">
-          <i class="fa-solid fa-bars"></i>
+      <div class="nav-end">
+        <a href="uploads/Harsh_Patil_Resume.pdf" class="btn btn-ghost nav-resume" data-action="resume">View Resume</a>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="nav-links">
+          <span></span><span></span>
         </button>
       </div>
     </nav>
   </header>
 
-  <!-- TOP SCROLL TIMELINE -->
-  <div class="scroll-timeline-indicator">
-    <div class="timeline-fill" id="timeline-fill"></div>
-  </div>
+  <!-- ==================== HERO ==================== -->
+  <section id="home" class="hero">
+    <!-- WebGL point cloud. Falls back to a CSS gradient when WebGL or
+         motion is unavailable; see .hero-fallback in styles.css. -->
+    <div class="hero-canvas" id="hero-canvas" aria-hidden="true">
+      <div class="hero-fallback"></div>
+    </div>
 
-  <!-- VIRTUAL SCROLL CONTAINER -->
-  <main class="scroll-track-container" id="scroll-track">
-
-    <!-- ==================== SECTION 1: HOME ==================== -->
-    <div class="storyboard-stage" id="stage-home">
-      <div class="storyboard-container">
-
-        <!-- STEP 1: INITIAL GREETING & NAME -->
-        <div class="story-step step-1" id="step-1">
-          <div class="status-pill">
-            <span class="green-dot"></span>
-            <span>Open to Opportunities</span>
-          </div>
-
-          <div class="greeting-lead">Hi, it's</div>
-          <h1 class="hero-name">
-            Harsh <span class="purple-highlight">Patil</span>
-          </h1>
-        </div>
-
-        <!-- STEP 2: DOMAIN EXPERTISE -->
-        <div class="story-step step-2" id="step-2">
-          <div class="role-matrix">
-            <span class="role-white">Data Science</span>
-            <span class="role-divider">|</span>
-            <span class="role-purple">Machine Learning</span>
-          </div>
-          <div class="role-matrix role-row-2">
-            <span class="role-purple">Generative AI</span>
-            <span class="role-divider">|</span>
-            <span class="role-white">Data Analytics</span>
-          </div>
-        </div>
-
-        <!-- STEP 3: BIO NARRATIVE -->
-        <div class="story-step step-3" id="step-3">
-          <div class="bio-text-group">
-            <p class="bio-paragraph">
-              I'm a recently graduated Data Science professional with a Master's degree in Data Science &amp; Big Data Analytics and hands-on experience building AI-driven, machine learning, and data analytics solutions.
-            </p>
-            <p class="bio-paragraph">
-              I work primarily with Python, SQL, Machine Learning, Generative AI, RAG systems, and data analytics, with a focus on turning complex problems into practical and reliable applications.
-            </p>
-            <p class="bio-paragraph">
-              I enjoy building systems that combine data, machine learning, and AI to solve real-world problems.
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <!-- Fixed-height viewport: both states are absolutely positioned
+             inside it, so swapping them cannot move the buttons.
+             "Hi, it's" belongs to state A, so it slides away with it and is
+             absent once the second state has arrived. -->
+        <div class="hero-swap" id="hero-swap">
+          <div class="hero-state" data-state="a">
+            <span class="hero-greet">Hi, it's</span>
+            <h1 class="hero-title">Harsh <span class="accent">Patil</span></h1>
+            <p class="hero-roles">
+              Data Science <span>/</span> Machine Learning <span>/</span> Generative AI
             </p>
           </div>
-        </div>
 
-        <!-- STEP 4: CTAS & LOCATION -->
-        <div class="story-step step-4" id="step-4">
-          <div class="hero-cta-row">
-            <a href="uploads/Harsh_Patil_Resume.pdf" class="btn-primary-purple" data-action="resume">
-              <span>View Resume</span>
-            </a>
-            <a href="#projects" class="btn-outline-dark" id="explore-btn">
-              <span>Explore My Work &darr;</span>
-            </a>
-          </div>
-
-          <div class="hero-footer-meta">
-            <span class="meta-item"><span class="meta-icon">📍</span> Based in Pune, India</span>
-            <span class="meta-dot">•</span>
-            <span class="meta-item"><span class="green-dot-sm"></span> Available for Full-time Roles</span>
+          <div class="hero-state" data-state="b">
+            <p class="hero-title">AI Research <span class="accent">Intern</span></p>
+            <p class="hero-roles">at Calyx Global</p>
           </div>
         </div>
 
+        <div class="hero-cta">
+          <a href="uploads/Harsh_Patil_Resume.pdf" class="btn btn-solid" data-action="resume">View Resume</a>
+          <a href="#projects" class="btn btn-moving" data-nav="projects">Explore My Work</a>
+        </div>
+      </div>
+
+      <!-- Same orbit component as the Contact section, sitting over the
+           point cloud. overflow:hidden keeps the spinning ring from
+           widening page scroll. -->
+      <div class="hero-figure">
+        <div class="orbit hero-orbit" id="hero-orbit">
+          <div class="orbit-halo"></div>
+          <div class="orbit-ring"></div>
+          <div class="orbit-ring orbit-ring-a"></div>
+          <div class="orbit-ring orbit-ring-b"></div>
+          <div class="orbit-ring orbit-ring-c"></div>
+          <div class="orbit-ring orbit-ring-d"></div>
+          <div class="orbit-ring orbit-spin"></div>
+
+          <div class="orbit-core">
+            <img src="uploads/harsh-portrait.jpg" alt="Harsh Patil"
+                 width="1254" height="1254" fetchpriority="high" decoding="async">
+          </div>
+
+          <span class="orbit-dot orbit-dot-1"></span>
+          <span class="orbit-dot orbit-dot-2"></span>
+          <span class="orbit-dot orbit-dot-3"></span>
+          <span class="orbit-dot orbit-dot-4"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The cursor image trail is painted behind everything in this zone:
+       About through Education + Skills, which is where the About block
+       ends. Experience follows it as its own section. -->
+  <div class="trail-zone" id="trail-zone">
+
+  <!-- ==================== ABOUT ==================== -->
+  <section id="about" class="section about">
+    <div class="wrap">
+      <h2 class="h2 text-animate">About Me</h2>
+
+      <div class="about-lead">
+        <p class="text-animate">
+          I'm a recently graduated Data Science professional with a Master's degree in Data Science &amp; Big Data Analytics and hands-on experience building AI-driven, machine learning, and data analytics solutions.
+        </p>
+      </div>
+
+      <div class="about-body fade-lines">
+        <div class="about-col">
+          <p>
+            I work primarily with Python, SQL, Machine Learning, Generative AI, RAG systems, and data analytics, with a focus on turning complex problems into practical and reliable applications.
+          </p>
+          <p>
+            I enjoy building systems that combine data, machine learning, and AI to solve real-world problems.
+          </p>
+        </div>
+        <div class="about-col">
+          <p>
+            Master's graduate in Data Science &amp; Big Data Analytics from MIT World Peace University, Pune, with a foundation in Computer Science and a practical, build-first approach to machine learning.
+          </p>
+          <p>
+            My academic and project work spans predictive modelling, data cleaning and analytics pipelines, and retrieval-augmented generation systems built with FAISS, BM25 and LLM APIs.
+          </p>
+        </div>
+        <div class="about-col">
+          <p>
+            Outside of coursework I spend time on GenAI experiments, prompt engineering, and shipping small tools with FastAPI and Streamlit, turning models into things people can actually use.
+          </p>
+          <p class="about-place">
+            Based in Pune, India. Available for Full-time Roles.
+          </p>
+        </div>
+      </div>
+
+      <!-- Metrics read as plain numbers, not cards: nothing here is elevated
+           above anything else, so a card border would be decoration. -->
+      <dl class="metrics reveal">
+        <div class="metric"><dt>Projects</dt><dd data-count="5" data-suffix="+">5+</dd></div>
+        <div class="metric"><dt>Technologies</dt><dd data-count="15" data-suffix="+">15+</dd></div>
+        <div class="metric"><dt>Certificates</dt><dd data-count="6" data-suffix="+">6+</dd></div>
+        <div class="metric"><dt>CGPA (M.Sc)</dt><dd data-count="8.49" data-decimals="2">8.49</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ==================== EDUCATION + SKILLS ==================== -->
+  <section class="section edu-skills">
+    <div class="wrap split">
+
+      <div class="edu reveal">
+        <h3 class="h3">Education</h3>
+
+        <div class="timeline">
+          <article class="tl-item">
+            <h4>MIT World Peace University, Pune</h4>
+            <p class="tl-degree">Master's in Data Science &amp; Big Data Analytics</p>
+            <p class="tl-meta">
+              <span class="pill pill-accent">CGPA 8.49 / 10</span>
+              <span class="tl-date">Aug 2024 - May 2026</span>
+            </p>
+            <p class="tags">
+              <span class="tag">Data Science</span>
+              <span class="tag">Data Analytics</span>
+              <span class="tag">Artificial Intelligence</span>
+              <span class="tag">Machine Learning</span>
+            </p>
+          </article>
+
+          <article class="tl-item">
+            <h4>Modern College, Ganeshkhind, Pune</h4>
+            <p class="tl-degree">Bachelor of Science in Computer Science</p>
+            <p class="tl-meta">
+              <span class="pill pill-accent">CGPA 8.01 / 10</span>
+              <span class="tl-date">Sep 2020 - Apr 2023</span>
+            </p>
+            <p class="tags">
+              <span class="tag">Computer Science</span>
+              <span class="tag">Programming</span>
+              <span class="tag">Databases</span>
+            </p>
+          </article>
+        </div>
+      </div>
+
+      <div class="skills reveal">
+        <h3 class="h3">Skills</h3>
+
+        <div class="skill-group">
+          <h4>Languages &amp; Tools</h4>
+          <p class="tags">
+            <span class="tag tag-i">Python</span>
+            <span class="tag tag-i">SQL</span>
+            <span class="tag tag-i">Power BI</span>
+            <span class="tag tag-i">MySQL</span>
+            <span class="tag tag-i">GitHub</span>
+            <span class="tag tag-i">Claude Code</span>
+          </p>
+        </div>
+
+        <div class="skill-group">
+          <h4>Core Techniques</h4>
+          <p class="tags">
+            <span class="tag tag-i">Data Cleaning &amp; Preprocessing</span>
+            <span class="tag tag-i">Predictive Analytics</span>
+            <span class="tag tag-i">Machine Learning</span>
+            <span class="tag tag-i">Prompt Engineering</span>
+          </p>
+        </div>
+
+        <div class="skill-group">
+          <h4>AI / Development</h4>
+          <p class="tags">
+            <span class="tag tag-i">Generative AI</span>
+            <span class="tag tag-i">LLMs</span>
+            <span class="tag tag-i">RAG</span>
+            <span class="tag tag-i">FAISS</span>
+            <span class="tag tag-i">BM25</span>
+            <span class="tag tag-i">FastAPI</span>
+            <span class="tag tag-i">Streamlit</span>
+            <span class="tag tag-i">Groq API</span>
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  </div><!-- /.trail-zone -->
+
+  <!--
+    One fluid field behind both sections, on one canvas. Two canvases, one
+    per section, could not be continuous: each ran its own simulation and
+    they met on a line, so a plume crossing it died on one side and a
+    different one appeared on the other.
+  -->
+  <div class="fluid-zone" id="fluid-zone">
+
+  <!-- ==================== EXPERIENCE ==================== -->
+  <section id="experience" class="section experience">
+    <div class="wrap">
+      <header class="sec-head reveal">
+        <h2 class="eyebrow eyebrow-xl">Experience</h2>
+      </header>
+
+      <article class="exp-item reveal">
+        <header class="exp-head">
+          <h3 class="exp-role">AI Research Intern <span class="exp-at">|</span> <span class="accent">Calyx Global</span></h3>
+          <span class="pill pill-accent">Sep 2026 - Present</span>
+        </header>
+
+        <p class="exp-meta">
+          <span>Remote</span>
+          <span>Full-Time</span>
+          <span>Data Science</span>
+        </p>
+
+        <p class="exp-body">
+          Working on applied <strong>Machine Learning and Deep Learning projects</strong>, covering the complete workflow from data preprocessing and EDA to model development, evaluation, and deployment. I work with <strong>classical ML, CNNs, RNNs/LSTMs, and Transfer Learning</strong>, while experimenting with different approaches to improve model performance. I also deploy models using <strong>Streamlit, Flask, and Dash</strong> and document experiments and findings through research reports and presentations.
+        </p>
+
+        <p class="tags">
+          <span class="tag tag-i">Python</span>
+          <span class="tag tag-i">Pandas</span>
+          <span class="tag tag-i">NumPy</span>
+          <span class="tag tag-i">Scikit-learn</span>
+          <span class="tag tag-i">TensorFlow</span>
+          <span class="tag tag-i">Machine Learning</span>
+          <span class="tag tag-i">Deep Learning</span>
+          <span class="tag tag-i">Transfer Learning</span>
+          <span class="tag tag-i">Streamlit</span>
+          <span class="tag tag-i">Flask</span>
+          <span class="tag tag-i">Dash</span>
+          <span class="tag tag-i">Matplotlib</span>
+          <span class="tag tag-i">Seaborn</span>
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ==================== PROJECTS ==================== -->
+  <section id="projects" class="section projects">
+    <div class="wrap">
+      <header class="sec-head reveal">
+        <p class="eyebrow">Projects</p>
+        <h2 class="h2">My Projects</h2>
+        <p class="sec-sub">Applied work across retrieval-augmented generation, machine learning and analytics, built end to end.</p>
+      </header>
+
+      <!-- Bento: 1 featured cell + 4 standard cells = exactly 5 projects. -->
+      <div class="proj-grid" id="projects-grid"></div>
+    </div>
+  </section>
+
+  </div><!-- /.fluid-zone -->
+
+  <!-- ==================== CERTIFICATIONS ==================== -->
+  <section id="certifications" class="section certs">
+    <div class="wrap">
+      <header class="sec-head reveal">
+        <h2 class="h2">My Certifications</h2>
+        <p class="sec-sub">Coursework and credentials across machine learning, analytics and generative AI.</p>
+      </header>
+
+      <div class="cert-stack" id="certs-list"></div>
+    </div>
+  </section>
+
+  <!-- ==================== CONTACT ==================== -->
+  <section id="contact" class="section contact">
+    <div class="wrap split split-contact">
+      <div class="reveal">
+        <p class="eyebrow">Let's Connect</p>
+        <h2 class="h2">Let's Connect</h2>
+        <p class="sec-sub sec-sub-left">Interested in data, AI, machine learning, or building something meaningful with technology? Let's connect.</p>
+
+        <div class="contact-list" id="contact-list"></div>
+      </div>
+
+      <!-- overflow:hidden — the outer ring spins, and a rotated box would
+           otherwise widen the page's scroll overflow on narrow screens. -->
+      <div class="orbit reveal">
+        <div class="orbit-halo"></div>
+        <div class="orbit-ring"></div>
+        <div class="orbit-ring orbit-ring-a"></div>
+        <div class="orbit-ring orbit-ring-b"></div>
+        <div class="orbit-ring orbit-ring-c"></div>
+        <div class="orbit-ring orbit-ring-d"></div>
+        <div class="orbit-ring orbit-spin"></div>
+
+        <div class="orbit-core">
+          <!-- Headshot is already a tight crop, so only a slight zoom to trim
+               background from the corners. A larger scale clips the hair. -->
+          <img src="uploads/harsh-portrait.jpg" alt="Harsh Patil" loading="lazy" decoding="async">
+        </div>
+
+        <span class="orbit-dot orbit-dot-1"></span>
+        <span class="orbit-dot orbit-dot-2"></span>
+        <span class="orbit-dot orbit-dot-3"></span>
+        <span class="orbit-dot orbit-dot-4"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="footer">
+    <div class="wrap footer-grid">
+      <div>
+        <div class="brand brand-footer">
+          <span class="brand-mark">HP</span>
+          <span class="brand-name">Harsh Patil</span>
+        </div>
+        <p class="footer-blurb">Building practical systems with data, machine learning and generative AI.</p>
+        <p class="tags">
+          <span class="tag">Data Science</span>
+          <span class="tag">Machine Learning</span>
+          <span class="tag">Generative AI</span>
+          <span class="tag">Data Analytics</span>
+        </p>
+      </div>
+
+      <div>
+        <h4 class="footer-h">Quick Links</h4>
+        <div class="footer-col" id="footer-links"></div>
+      </div>
+
+      <div>
+        <h4 class="footer-h">Connect</h4>
+        <div class="footer-col" id="footer-connect"></div>
       </div>
     </div>
 
-    <!-- ==================== SECTION 2: ABOUT ME ==================== -->
-    <div class="storyboard-stage stage-about" id="stage-about">
-      <div class="about-container">
-
-        <!-- ABOUT STEP 1: Header -->
-        <div class="about-step" id="about-step-1">
-          <div class="about-header">
-            <span class="about-eyebrow">ABOUT ME</span>
-            <h2 class="about-main-title">About Me</h2>
-            <div class="title-underline"></div>
-          </div>
-        </div>
-
-        <!-- ABOUT STEP 2: 3-Column Narrative -->
-        <div class="about-step" id="about-step-2">
-          <div class="about-cols-grid">
-            <div class="about-col">
-              <p>
-                Master's graduate in Data Science &amp; Big Data Analytics from MIT World Peace University, Pune, with a foundation in Computer Science and a practical, build-first approach to machine learning.
-              </p>
-            </div>
-            <div class="about-col">
-              <p>
-                My academic and project work spans predictive modelling, data cleaning and analytics pipelines, and retrieval-augmented generation systems built with FAISS, BM25 and LLM APIs.
-              </p>
-            </div>
-            <div class="about-col">
-              <p>
-                Outside of coursework I spend time on GenAI experiments, prompt engineering, and shipping small tools with FastAPI and Streamlit &mdash; turning models into things people can actually use.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- ABOUT STEP 3: 4 Stats Cards -->
-        <div class="about-step" id="about-step-3">
-          <div class="about-stats-row">
-            <div class="stat-card glass-panel-sm">
-              <span class="stat-val">5+</span>
-              <span class="stat-label">PROJECTS</span>
-            </div>
-            <div class="stat-card glass-panel-sm">
-              <span class="stat-val">15+</span>
-              <span class="stat-label">TECHNOLOGIES</span>
-            </div>
-            <div class="stat-card glass-panel-sm">
-              <span class="stat-val">6+</span>
-              <span class="stat-label">CERTIFICATES</span>
-            </div>
-            <div class="stat-card glass-panel-sm">
-              <span class="stat-val">8.49</span>
-              <span class="stat-label">CGPA (M.SC)</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- ABOUT STEP 4: Split Grid (Education & Skills) -->
-        <div class="about-step" id="about-step-4">
-          <div class="about-split-grid">
-
-            <!-- LEFT CARD: EDUCATION -->
-            <div class="about-card education-card glass-panel-lg">
-              <h3 class="card-heading">Education</h3>
-
-              <div class="timeline-wrapper">
-
-                <!-- Item 1 -->
-                <div class="timeline-item">
-                  <div class="timeline-marker">
-                    <div class="marker-dot"></div>
-                    <div class="marker-line"></div>
-                  </div>
-                  <div class="timeline-content">
-                    <h4 class="edu-title">MIT World Peace University &mdash; Pune</h4>
-                    <p class="edu-degree">Master's in Data Science &amp; Big Data Analytics</p>
-
-                    <div class="edu-meta-row">
-                      <span class="badge-pill-purple">CGPA 8.49 / 10</span>
-                      <span class="edu-date">Aug 2024 &ndash; May 2026</span>
-                    </div>
-
-                    <div class="tag-pills-row">
-                      <span class="tag-pill">Data Science</span>
-                      <span class="tag-pill">Data Analytics</span>
-                      <span class="tag-pill">Artificial Intelligence</span>
-                      <span class="tag-pill">Machine Learning</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Item 2 -->
-                <div class="timeline-item">
-                  <div class="timeline-marker">
-                    <div class="marker-dot"></div>
-                  </div>
-                  <div class="timeline-content">
-                    <h4 class="edu-title">Modern College, Ganeshkhind &mdash; Pune</h4>
-                    <p class="edu-degree">Bachelor of Science in Computer Science</p>
-
-                    <div class="edu-meta-row">
-                      <span class="badge-pill-purple">CGPA 8.01 / 10</span>
-                      <span class="edu-date">Sep 2020 &ndash; Apr 2023</span>
-                    </div>
-
-                    <div class="tag-pills-row">
-                      <span class="tag-pill">Computer Science</span>
-                      <span class="tag-pill">Programming</span>
-                      <span class="tag-pill">Databases</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            <!-- RIGHT CARD: SKILLS -->
-            <div class="about-card skills-card glass-panel-lg">
-              <h3 class="card-heading">Skills</h3>
-
-              <div class="skills-sections-group">
-
-                <!-- Group 1 -->
-                <div class="skill-category">
-                  <span class="skill-category-title">LANGUAGES &amp; TOOLS</span>
-                  <div class="tag-pills-row">
-                    <span class="tag-pill interactive">Python</span>
-                    <span class="tag-pill interactive">SQL</span>
-                    <span class="tag-pill interactive">Power BI</span>
-                    <span class="tag-pill interactive">MySQL</span>
-                    <span class="tag-pill interactive">GitHub</span>
-                    <span class="tag-pill interactive">Claude Code</span>
-                  </div>
-                </div>
-
-                <!-- Group 2 -->
-                <div class="skill-category">
-                  <span class="skill-category-title">CORE TECHNIQUES</span>
-                  <div class="tag-pills-row">
-                    <span class="tag-pill interactive">Data Cleaning &amp; Preprocessing</span>
-                    <span class="tag-pill interactive">Predictive Analytics</span>
-                    <span class="tag-pill interactive">Machine Learning</span>
-                    <span class="tag-pill interactive">Prompt Engineering</span>
-                  </div>
-                </div>
-
-                <!-- Group 3 -->
-                <div class="skill-category">
-                  <span class="skill-category-title">AI / DEVELOPMENT</span>
-                  <div class="tag-pills-row">
-                    <span class="tag-pill interactive">Generative AI</span>
-                    <span class="tag-pill interactive">LLMs</span>
-                    <span class="tag-pill interactive">RAG</span>
-                    <span class="tag-pill interactive">FAISS</span>
-                    <span class="tag-pill interactive">BM25</span>
-                    <span class="tag-pill interactive">FastAPI</span>
-                    <span class="tag-pill interactive">Streamlit</span>
-                    <span class="tag-pill interactive">Groq API</span>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-      </div>
+    <div class="wrap footer-base">
+      <span>© 2026 Harsh Patil. All rights reserved.</span>
+      <span>Pune, India</span>
     </div>
+  </footer>
 
-  </main>
-
-  <!-- ==========================================================================
-       DOCUMENT SECTIONS — Projects / Certifications / Contact / Footer
-       Card contents are rendered by app.js from the CONFIG block.
-       ========================================================================== -->
-  <div class="doc-sections" id="doc-sections">
-
-    <!-- ============ PROJECTS ============ -->
-    <section id="projects" style="max-width:1320px;margin:0 auto;padding:clamp(60px,8vw,110px) clamp(18px,3vw,40px)">
-      <div class="reveal" style="text-align:center">
-        <p style="margin:0 0 12px;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;letter-spacing:.30em;text-transform:uppercase;color:#A855F7">Projects</p>
-        <h2 style="margin:0 0 14px;font-size:clamp(32px,4.4vw,54px);line-height:1.06;letter-spacing:-0.025em;color:#F5F5F7">My Projects</h2>
-        <p style="margin:0 auto;max-width:60ch;font-size:16px;line-height:1.7;color:#9CA3AF">Applied work across retrieval-augmented generation, machine learning and analytics — built end to end.</p>
-      </div>
-
-      <div id="projects-grid" style="margin-top:clamp(34px,4.4vw,54px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:clamp(18px,2.2vw,28px)"></div>
-    </section>
-
-    <!-- ============ CERTIFICATIONS ============ -->
-    <section id="certifications" style="max-width:1320px;margin:0 auto;padding:clamp(60px,8vw,110px) clamp(18px,3vw,40px);overflow:hidden">
-      <div class="reveal" style="text-align:center">
-        <p style="margin:0 0 12px;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;letter-spacing:.30em;text-transform:uppercase;color:#A855F7">Certifications</p>
-        <h2 style="margin:0 0 14px;font-size:clamp(32px,4.4vw,54px);line-height:1.06;letter-spacing:-0.025em;color:#F5F5F7">My Certifications</h2>
-        <p style="margin:0 auto;max-width:60ch;font-size:16px;line-height:1.7;color:#9CA3AF">Coursework and credentials across machine learning, analytics and generative AI.</p>
-      </div>
-
-      <div id="certs-grid" style="margin-top:clamp(34px,4.4vw,54px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(258px,100%),1fr));gap:clamp(16px,1.8vw,22px)"></div>
-    </section>
-
-    <!-- ============ CONTACT ============ -->
-    <section id="contact" style="max-width:1320px;margin:0 auto;padding:clamp(60px,8vw,110px) clamp(18px,3vw,40px) clamp(70px,8vw,110px)">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));gap:clamp(34px,4vw,60px);align-items:center">
-        <div class="reveal">
-          <p style="margin:0 0 12px;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;letter-spacing:.30em;text-transform:uppercase;color:#A855F7">Let's Connect</p>
-          <h2 style="margin:0 0 16px;font-size:clamp(32px,4.4vw,54px);line-height:1.06;letter-spacing:-0.025em;color:#F5F5F7">Let's Connect</h2>
-          <p style="margin:0 0 30px;max-width:52ch;font-size:16px;line-height:1.75;color:#9CA3AF">Interested in data, AI, machine learning, or building something meaningful with technology? Let's connect.</p>
-
-          <div id="contact-list" style="display:flex;flex-direction:column;gap:14px"></div>
-        </div>
-
-        <!-- overflow:hidden — the outer ring spins, and a rotated box would
-             otherwise widen the page's scroll overflow on narrow screens. -->
-        <div class="reveal" style="position:relative;width:100%;max-width:420px;justify-self:center;aspect-ratio:1/1;overflow:hidden">
-          <div style="position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle at 42% 38%, rgba(139,92,246,.24), rgba(99,102,241,.08) 50%, transparent 72%)"></div>
-          <div style="position:absolute;inset:14%;border-radius:50%;border:1px solid rgba(168,85,247,.30)"></div>
-          <div style="position:absolute;inset:14%;border-radius:50%;border:1px solid rgba(99,102,241,.22);transform:scaleX(.42);animation:hpPulse 8s ease-in-out infinite"></div>
-          <div style="position:absolute;inset:14%;border-radius:50%;border:1px solid rgba(99,102,241,.18);transform:scaleX(.75)"></div>
-          <div style="position:absolute;inset:14%;border-radius:50%;border:1px dashed rgba(196,181,253,.16);transform:scaleY(.34)"></div>
-          <div style="position:absolute;inset:14%;border-radius:50%;border:1px dashed rgba(196,181,253,.12);transform:scaleY(.68)"></div>
-          <div style="position:absolute;inset:2%;border-radius:50%;border:1px solid rgba(139,92,246,.12);animation:hpSpin 50s linear infinite"></div>
-
-          <!-- Portrait at the core of the globe -->
-          <div style="position:absolute;inset:16%;border-radius:50%;overflow:hidden;border:2px solid rgba(168,85,247,.55);box-shadow:0 0 0 6px rgba(139,92,246,.10),0 0 60px rgba(139,92,246,.5),inset 0 0 30px rgba(10,10,15,.45);background:#0A0A0F">
-            <!-- Headshot is already a tight crop, so only a slight zoom to trim
-                 background from the corners. A larger scale clips the hair. -->
-            <img src="uploads/harsh-portrait.jpg" alt="Harsh Patil" loading="lazy" style="position:absolute;top:-4%;left:-4%;width:108%;height:108%;object-fit:cover;display:block" />
-          </div>
-
-          <div style="position:absolute;left:14%;top:26%;width:9px;height:9px;border-radius:50%;background:#C4B5FD;box-shadow:0 0 14px #A855F7"></div>
-          <div style="position:absolute;left:74%;top:15%;width:7px;height:7px;border-radius:50%;background:#818CF8;box-shadow:0 0 12px #6366F1"></div>
-          <div style="position:absolute;left:85%;top:70%;width:8px;height:8px;border-radius:50%;background:#A855F7;box-shadow:0 0 14px #8B5CF6"></div>
-          <div style="position:absolute;left:27%;top:84%;width:6px;height:6px;border-radius:50%;background:#DDD6FE;box-shadow:0 0 12px #C4B5FD"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ FOOTER ============ -->
-    <footer style="border-top:1px solid rgba(139,92,246,0.16);background:rgba(8,7,12,0.6)">
-      <div style="max-width:1320px;margin:0 auto;padding:clamp(40px,5vw,64px) clamp(18px,3vw,40px) 30px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:clamp(26px,3vw,44px)">
-        <div>
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-            <span style="width:38px;height:38px;flex:0 0 38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:#fff;background:linear-gradient(135deg,#8B5CF6,#6366F1);box-shadow:0 0 22px rgba(139,92,246,.4)">HP</span>
-            <span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16.5px;color:#F5F5F7">Harsh Patil</span>
-          </div>
-          <p style="margin:0 0 16px;max-width:38ch;font-size:14px;line-height:1.7;color:#8B8798">Building practical systems with data, machine learning and generative AI.</p>
-          <div style="display:flex;flex-wrap:wrap;gap:7px">
-            <span class="doc-chip">Data Science</span>
-            <span class="doc-chip">Machine Learning</span>
-            <span class="doc-chip">Generative AI</span>
-            <span class="doc-chip">Data Analytics</span>
-          </div>
-        </div>
-
-        <div>
-          <p style="margin:0 0 16px;font-size:11.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#A855F7">Quick Links</p>
-          <div id="footer-links" style="display:flex;flex-direction:column;gap:2px"></div>
-        </div>
-
-        <div>
-          <p style="margin:0 0 16px;font-size:11.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#A855F7">Connect</p>
-          <div id="footer-connect" style="display:flex;flex-direction:column;gap:2px"></div>
-        </div>
-      </div>
-      <div style="max-width:1320px;margin:0 auto;padding:20px clamp(18px,3vw,40px) 34px;border-top:1px solid rgba(255,255,255,0.05);display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;font-size:13px;color:#6F6B7D">
-        <span>© 2026 Harsh Patil. All rights reserved.</span>
-        <span>Pune, India</span>
-      </div>
-    </footer>
-
-  </div>
-
-  <!-- LIGHTBOX ROOT -->
   <div id="modal-root"></div>
 
-  <script src="app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
+  <script src="app.js" defer></script>
 </body>
 </html>

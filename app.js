@@ -1,12 +1,10 @@
 /**
  * HARSH PATIL — PORTFOLIO ENGINE
  *
- * - 120-frame responsive canvas scrubbing (desktop / tablet / mobile)
- * - AVIF frames with automatic WebP fallback
- * - Dual-buffer LERP interpolation for smooth scrubbing
- * - Step-by-step scroll choreography for Home & About
- * - Document sections (Projects / Certifications / Contact) rendered from CONFIG
- * - Lightbox: PDF.js for the resume, plain image for certificates
+ * - Three.js point cloud behind the hero (lazy-loaded, guarded, pausable)
+ * - GSAP ScrollTrigger for reveals and the hero scrub (no scroll listeners)
+ * - Projects / certificates / contacts rendered from CONFIG
+ * - Lightbox: PDF.js canvas rendering for the resume, image for certificates
  */
 
 (function () {
@@ -25,13 +23,21 @@
       email: 'mailto:workidharsh29@gmail.com'
     },
 
-    // category: "RAG" | "ML" | "GenAI" — drives badge colour
     projects: [
+      {
+        title: 'HistoScope - Lung & Colon Cancer Histopathology Classifier',
+        category: 'DL',
+        tagline: 'Classifies H&E histopathology tiles into five lung and colon diagnostic classes at 98.93% test accuracy.',
+        description: 'A MobileNetV2 transfer-learning model that separates benign tissue from adenocarcinoma and squamous cell carcinoma across lung and colon slides, at 0.9998 ROC-AUC, 1.000 malignancy sensitivity, and 97.33% accuracy held under stain shift, served through a Streamlit app that returns the full probability distribution for every tile.',
+        image: 'uploads/histoscope.webp',
+        tech: ['Deep Learning', 'Computer Vision', 'Transfer Learning', 'MobileNetV2', 'TensorFlow', 'Medical Imaging', 'Streamlit', 'Python'],
+        github: 'https://github.com/harshislearning/Lung-and-colon-cancer-image-classification'
+      },
       {
         title: 'Ask My Docs',
         category: 'RAG',
-        tagline: 'A production-grade RAG system that answers questions from your PDFs — with citations you can trust.',
-        description: 'Hybrid retrieval (dense + keyword) + reranking + cited, verified answers — served via FastAPI and Streamlit, with an automated eval suite gating every change in CI.',
+        tagline: 'A production-grade RAG system that answers questions from your PDFs, with citations you can trust.',
+        description: 'Hybrid retrieval (dense + keyword) + reranking + cited, verified answers, served via FastAPI and Streamlit, with an automated eval suite gating every change in CI.',
         image: 'uploads/Screenshot 2026-08-11 123718.png',
         tech: ['RAG', 'LLM', 'FastAPI', 'Streamlit', 'FAISS', 'BM25', 'Python', 'CI/CD'],
         github: 'https://github.com/harshislearning/Ask-My-Docs'
@@ -40,7 +46,7 @@
         title: 'Vendor Invoice Intelligence Platform',
         category: 'ML',
         tagline: 'ML-driven freight cost forecasting and invoice risk flagging for procurement & finance teams.',
-        description: 'An end-to-end ML system that predicts vendor freight costs and automatically flags high-risk invoices for manual review — built on real invoice/purchase data with a live Streamlit dashboard.',
+        description: 'An end-to-end ML system that predicts vendor freight costs and automatically flags high-risk invoices for manual review, built on real invoice/purchase data with a live Streamlit dashboard.',
         image: 'uploads/Screenshot 2026-08-13 151213.png',
         tech: ['Machine Learning', 'Regression', 'Classification', 'Python', 'Scikit-learn', 'Pandas', 'SQLite', 'Streamlit'],
         github: 'https://github.com/harshislearning/-Vendor-Invoice-Intelligence-Platform'
@@ -48,7 +54,7 @@
       {
         title: 'AI-Powered Synthetic Data Generator & Data Cleaning Tutor',
         category: 'GenAI',
-        tagline: 'Generates messy, realistic datasets on demand — then teaches you exactly how to clean them.',
+        tagline: 'Generates messy, realistic datasets on demand, then teaches you exactly how to clean them.',
         description: 'A Streamlit app that creates domain-specific synthetic datasets with intentionally injected data quality issues, then uses an LLM to generate a step-by-step Python or SQL cleaning solution for the exact dataset you just made.',
         image: 'uploads/Screenshot (130).png',
         tech: ['LLM', 'Streamlit', 'Python', 'Pandas', 'Faker', 'Groq API', 'EdTech'],
@@ -57,7 +63,7 @@
       {
         title: 'Prediction of FC Barcelona Football Matches',
         category: 'ML',
-        tagline: 'Predicting Win / Draw / Loss for FC Barcelona matches — built on a self-made dataset, achieving 72.22% accuracy.',
+        tagline: 'Predicting Win / Draw / Loss for FC Barcelona matches, built on a self-made dataset, achieving 72.22% accuracy.',
         description: "A machine learning model trained on a custom-built dataset of FC Barcelona's 2023/24 and 2024/25 seasons, served through a Flask web app that predicts match outcomes from opponent and home/away input.",
         image: 'uploads/Screenshot 2026-08-11 122140.png',
         tech: ['Machine Learning', 'Flask', 'Python', 'Scikit-learn', 'Sports Analytics', 'Random Forest', 'XGBoost'],
@@ -66,8 +72,8 @@
       {
         title: 'LinkedIn Post Generator',
         category: 'GenAI',
-        tagline: 'AI that writes LinkedIn posts in your own voice — trained on your past posts, not a generic template.',
-        description: 'An LLM-powered tool that generates LinkedIn posts matching a chosen topic, language, and length — using few-shot examples pulled from a real post history to keep the writing style human, not robotic.',
+        tagline: 'AI that writes LinkedIn posts in your own voice, trained on your past posts, not a generic template.',
+        description: 'An LLM-powered tool that generates LinkedIn posts matching a chosen topic, language, and length, using few-shot examples pulled from a real post history to keep the writing style human, not robotic.',
         image: 'uploads/Screenshot (80).png',
         tech: ['LLM', 'LangChain', 'Python', 'Prompt Engineering', 'Few-Shot Learning', 'NLP'],
         github: 'https://github.com/harshislearning/Linkedin-Post-Generator'
@@ -85,12 +91,6 @@
     ]
   };
 
-  const BADGE = {
-    RAG:   { color: '#C4B5FD', bg: 'rgba(139,92,246,.16)', border: 'rgba(139,92,246,.45)', thumbBg: 'linear-gradient(140deg,rgba(46,28,84,.95),rgba(13,11,20,.95))' },
-    ML:    { color: '#A5B4FC', bg: 'rgba(99,102,241,.16)', border: 'rgba(99,102,241,.45)', thumbBg: 'linear-gradient(140deg,rgba(28,32,78,.95),rgba(13,11,20,.95))' },
-    GenAI: { color: '#F0ABFC', bg: 'rgba(217,70,239,.14)', border: 'rgba(217,70,239,.42)', thumbBg: 'linear-gradient(140deg,rgba(62,24,74,.95),rgba(13,11,20,.95))' }
-  };
-
   const CONTACTS = [
     { icon: '{ }', label: 'GitHub',   desc: 'Check out my code and open-source projects', meta: 'github.com/harshislearning',              href: CONFIG.links.github },
     { icon: 'in',  label: 'LinkedIn', desc: "Let's connect professionally on LinkedIn",   meta: 'linkedin.com/in/harsh-patil-247195253', href: CONFIG.links.linkedin },
@@ -100,486 +100,2001 @@
   const NAV = [
     { label: 'Home', id: 'home' },
     { label: 'About', id: 'about' },
+    { label: 'Experience', id: 'experience' },
     { label: 'Projects', id: 'projects' },
     { label: 'Certifications', id: 'certifications' },
     { label: 'Contact', id: 'contact' }
   ];
 
-  /* =====================================================================
-     CANVAS SCRUBBING ENGINE
-     ===================================================================== */
-  const TOTAL_FRAMES = 120;
-  const LERP_FACTOR = 0.085;
-  const PRIORITY_FRAMES = 24;   // reveal the page once these are in
+  const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js';
+  const PDFJS_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
+  const PDFJS_WORKER_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
-  const canvas = document.getElementById('animation-canvas');
-  const ctx = canvas.getContext('2d', { alpha: false });
-  const preloader = document.getElementById('preloader');
-  const preloaderBar = document.getElementById('preloader-bar');
-  const preloaderPercent = document.getElementById('preloader-percent');
-  const timelineFill = document.getElementById('timeline-fill');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const navLinks = document.querySelectorAll('.nav-link');
-  const mobileToggle = document.getElementById('mobile-toggle');
-  const navMenu = document.getElementById('nav-menu');
-  const exploreBtn = document.getElementById('explore-btn');
-
-  const track = document.getElementById('scroll-track');
-  const docSections = document.getElementById('doc-sections');
-
-  const stageHome = document.getElementById('stage-home');
-  const stageAbout = document.getElementById('stage-about');
-
-  const step1 = document.getElementById('step-1');
-  const step2 = document.getElementById('step-2');
-  const step3 = document.getElementById('step-3');
-  const step4 = document.getElementById('step-4');
-
-  const aboutStep1 = document.getElementById('about-step-1');
-  const aboutStep2 = document.getElementById('about-step-2');
-  const aboutStep3 = document.getElementById('about-step-3');
-  const aboutStep4 = document.getElementById('about-step-4');
-  const eduCard = document.querySelector('.education-card');
-  const skillCard = document.querySelector('.skills-card');
-  const canvasWrapper = document.getElementById('canvas-wrapper');
-
-  let frameExt = 'avif';
-  let currentDevice = getDeviceType();
-  const imageCache = { desktop: [], tablet: [], mobile: [] };
-
-  let targetProgress = 0;
-  let currentProgress = 0;
-  let currentFrameIndex = 0;
-  let storyDone = false;
-  let stageAboutOpacity = 0;   // narrative opacity, before the handoff fade
-
-  function getDeviceType() {
-    const w = window.innerWidth;
-    if (w > 1024) return 'desktop';
-    if (w >= 768) return 'tablet';
-    return 'mobile';
-  }
-
-  function getFramePath(device, index) {
-    return 'frames/' + device + '/frame_' + String(index + 1).padStart(4, '0') + '.' + frameExt;
-  }
-
-  function resizeCanvas() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = window.innerWidth * dpr;
-    canvas.height = window.innerHeight * dpr;
-
-    const next = getDeviceType();
-    if (next !== currentDevice) {
-      currentDevice = next;
-      preloadDeviceFrames(currentDevice);
-    }
-    renderCurrentFrame();
-  }
-
-  function renderFrame(img) {
-    if (!img || !img.complete || img.naturalWidth === 0) return;
-    const cw = canvas.width, ch = canvas.height;
-    const ir = img.naturalWidth / img.naturalHeight;
-    const cr = cw / ch;
-    let rw, rh, ox, oy;
-    if (cr > ir) { rw = cw; rh = cw / ir; ox = 0; oy = (ch - rh) / 2; }
-    else { rh = ch; rw = ch * ir; oy = 0; ox = (cw - rw) / 2; }
-    ctx.drawImage(img, ox, oy, rw, rh);
-  }
-
-  function renderCurrentFrame() {
-    const frames = imageCache[currentDevice];
-    const img = frames && frames[currentFrameIndex];
-    if (img && img.complete && img.naturalWidth > 0) {
-      renderFrame(img);
-      return;
-    }
-    // Requested frame not in yet — fall back to the nearest earlier one.
-    for (let i = currentFrameIndex - 1; i >= 0; i--) {
-      const f = frames && frames[i];
-      if (f && f.complete && f.naturalWidth > 0) { renderFrame(f); return; }
-    }
-  }
-
-  function preloadDeviceFrames(device, onPriority) {
-    if (imageCache[device].length === TOTAL_FRAMES) {
-      if (onPriority) onPriority();
-      return;
-    }
-    let loaded = 0;
-    let priorityFired = false;
-    const frames = [];
-    imageCache[device] = frames;
-
-    for (let i = 0; i < TOTAL_FRAMES; i++) {
-      const img = new Image();
-      const done = () => {
-        loaded++;
-        if (i === 0) renderCurrentFrame();
-        if (!priorityFired && loaded >= Math.min(PRIORITY_FRAMES, TOTAL_FRAMES)) {
-          priorityFired = true;
-          if (onPriority) onPriority();
-        }
-        if (onPriority && !priorityFired) {
-          const pct = Math.round((loaded / PRIORITY_FRAMES) * 100);
-          if (preloaderBar) preloaderBar.style.width = pct + '%';
-          if (preloaderPercent) preloaderPercent.textContent = pct + '%';
-        }
-      };
-      img.onload = done;
-      img.onerror = done;
-      img.src = getFramePath(device, i);
-      frames.push(img);
-    }
-  }
+  const modalRoot = document.getElementById('modal-root');
 
   /* =====================================================================
-     SCROLL NARRATIVE — timings exactly as authored
+     SMALL HELPERS
      ===================================================================== */
-  function interpolateRange(p, start, full, exitStart, exitEnd) {
-    if (p < start) return 0;
-    // start === full means "already fully in" — used by the hero so the page
-    // is not blank at rest on first load (progress is exactly 0 there).
-    if (p <= full) return full === start ? 1 : (p - start) / (full - start);
-    if (p <= exitStart) return 1;
-    if (p <= exitEnd) return 1 - ((p - exitStart) / (exitEnd - exitStart));
-    return 0;
-  }
-
-  // Opacity + interactivity together. The stylesheet used to gate clicks behind
-  // a .visible class that was never applied, which made every hero button dead.
-  // `collapse` takes a faded-out block out of layout flow, so the block that
-  // replaces it can occupy the stage instead of being pushed below it.
-  function paint(node, opacity, offsetY, collapse) {
-    if (!node) return;
-    node.style.opacity = opacity;
-    if (offsetY != null) node.style.transform = 'translateY(' + offsetY + 'px)';
-    node.style.pointerEvents = opacity > 0.5 ? 'auto' : 'none';
-    if (collapse) node.style.display = opacity <= 0.01 ? 'none' : '';
-  }
-
-  function updateScrollNarrative(progress) {
-    if (timelineFill) timelineFill.style.width = Math.min(100, progress * 100) + '%';
-
-    // STAGE 1: HOME (0.00 → 0.44)
-    const homeOpacity = interpolateRange(progress, 0.00, 0.00, 0.38, 0.44);
-    if (stageHome) {
-      stageHome.style.opacity = homeOpacity;
-      stageHome.style.pointerEvents = homeOpacity > 0.2 ? 'auto' : 'none';
-      stageHome.style.transform = 'translateY(' + (progress * -30) + 'px)';
-    }
-
-    paint(step1, interpolateRange(progress, 0.00, 0.00, 0.38, 0.44), 0);
-    paint(step2, interpolateRange(progress, 0.03, 0.10, 0.38, 0.44), (1 - clamp01((progress - 0.03) / 0.07)) * 16);
-    paint(step3, interpolateRange(progress, 0.10, 0.20, 0.38, 0.44), (1 - clamp01((progress - 0.10) / 0.10)) * 18);
-    paint(step4, interpolateRange(progress, 0.20, 0.32, 0.38, 0.44), (1 - clamp01((progress - 0.20) / 0.12)) * 16);
-
-    // STAGE 2: ABOUT (0.44 → 1.00)
-    const aboutOpacity = interpolateRange(progress, 0.44, 0.50, 1.0, 1.0);
-    stageAboutOpacity = aboutOpacity;
-    if (stageAbout) {
-      // Final opacity is applied in tick(), which also folds in the handoff fade.
-      stageAbout.style.pointerEvents = aboutOpacity > 0.2 ? 'auto' : 'none';
-      stageAbout.classList.toggle('active', aboutOpacity > 0.01);
-    }
-    // The intro block (header + narrative + stats) hands over to the
-    // Education/Skills cards rather than stacking with them — otherwise the
-    // section is taller than any real viewport and needs a nested scrollbar.
-    paint(aboutStep1, interpolateRange(progress, 0.45, 0.51, 0.72, 0.78), (1 - clamp01((progress - 0.45) / 0.06)) * 22, true);
-    paint(aboutStep2, interpolateRange(progress, 0.52, 0.59, 0.72, 0.78), (1 - clamp01((progress - 0.52) / 0.07)) * 22, true);
-    paint(aboutStep3, interpolateRange(progress, 0.60, 0.67, 0.72, 0.78), (1 - clamp01((progress - 0.60) / 0.07)) * 20, true);
-
-    // Below the 2-column breakpoint the two cards stack, which again overflows,
-    // so on narrow screens they take the stage one at a time.
-    const twoCol = window.innerWidth > 1024;
-    let eduOp, skillOp;
-    if (twoCol) {
-      eduOp = skillOp = interpolateRange(progress, 0.78, 0.88, 1.0, 1.0);
-    } else {
-      // Stacked on one grid cell (see layoutAboutCards), so they can overlap
-      // through a true cross-fade with no blank frame between them.
-      eduOp = interpolateRange(progress, 0.76, 0.83, 0.87, 0.92);
-      skillOp = interpolateRange(progress, 0.87, 0.92, 1.0, 1.0);
-    }
-
-    const wrap = Math.max(eduOp, skillOp);
-    paint(aboutStep4, wrap, (1 - clamp01((progress - 0.76) / 0.10)) * 22, true);
-    if (eduCard) {
-      eduCard.style.opacity = eduOp;
-      eduCard.style.pointerEvents = eduOp > 0.5 ? 'auto' : 'none';
-    }
-    if (skillCard) {
-      skillCard.style.opacity = skillOp;
-      skillCard.style.pointerEvents = skillOp > 0.5 ? 'auto' : 'none';
-    }
-  }
-
-  /* Below the 2-column breakpoint the Education and Skills cards share one grid
-     cell, stacked on top of each other, so they can cross-fade without the
-     section growing taller than the stage. The cell is pinned to the taller of
-     the two, measured while both are still in normal flow. */
-  function layoutAboutCards() {
-    const grid = document.querySelector('.about-split-grid');
-    if (!grid || !eduCard || !skillCard) return;
-    const cards = [eduCard, skillCard];
-
-    cards.forEach(c => { c.style.position = ''; c.style.top = ''; c.style.left = ''; c.style.width = ''; });
-    grid.style.position = '';
-    grid.style.minHeight = '';
-
-    if (window.innerWidth > 1024) return;
-
-    const h = Math.max(eduCard.offsetHeight, skillCard.offsetHeight);
-    grid.style.position = 'relative';
-    grid.style.minHeight = h + 'px';
-    cards.forEach(c => { c.style.position = 'absolute'; c.style.top = '0'; c.style.left = '0'; c.style.width = '100%'; });
-  }
-
-  function clamp01(v) { return Math.min(1, Math.max(0, v)); }
-
-  /* =====================================================================
-     SCROLL SPY — spans the fixed story track and the document sections
-     ===================================================================== */
-  function setActiveNav(id) {
-    navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('data-nav') === id));
-  }
-
-  function updateActiveSection(progress) {
-    if (!storyDone) {
-      setActiveNav(progress < 0.46 ? 'home' : 'about');
-      return;
-    }
-    let active = 'projects';
-    ['projects', 'certifications', 'contact'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.45) active = id;
-    });
-    setActiveNav(active);
-  }
-
-  /* =====================================================================
-     MAIN LOOP
-     ===================================================================== */
-  function trackScrollable() {
-    return Math.max(1, track.offsetHeight - window.innerHeight);
-  }
-
-  function tick() {
-    const y = window.scrollY || window.pageYOffset || 0;
-    targetProgress = clamp01(y / trackScrollable());
-    currentProgress += (targetProgress - currentProgress) * LERP_FACTOR;
-
-    // Hand the screen over to the document sections proportionally, so the
-    // fixed layers cross-fade smoothly in BOTH directions rather than snapping
-    // at a threshold when you scroll back up from Projects.
-    let handoff = 0;
-    if (docSections) {
-      const top = docSections.getBoundingClientRect().top;
-      const vh = window.innerHeight;
-      handoff = clamp01((vh - top) / (vh * 0.75));
-    }
-    if (canvasWrapper) {
-      canvasWrapper.style.opacity = 1 - handoff;
-      canvasWrapper.style.pointerEvents = handoff > 0.5 ? 'none' : '';
-    }
-    if (stageHome) stageHome.style.visibility = handoff >= 1 ? 'hidden' : '';
-    if (stageAbout) {
-      stageAbout.style.visibility = handoff >= 1 ? 'hidden' : '';
-      stageAbout.style.opacity = stageAboutOpacity * (1 - handoff);
-    }
-
-    if ((handoff >= 1) !== storyDone) {
-      storyDone = handoff >= 1;
-      document.body.classList.toggle('story-done', storyDone);
-    }
-
-    if (!storyDone) {
-      const frame = Math.min(TOTAL_FRAMES - 1, Math.max(0, Math.round(currentProgress * (TOTAL_FRAMES - 1))));
-      if (frame !== currentFrameIndex) {
-        currentFrameIndex = frame;
-        renderCurrentFrame();
-      }
-      updateScrollNarrative(currentProgress);
-    }
-
-    updateActiveSection(currentProgress);
-    requestAnimationFrame(tick);
-  }
-
-  /* =====================================================================
-     NAVIGATION
-     ===================================================================== */
-  // Document offset. offsetTop is relative to the offsetParent (.doc-sections
-  // is positioned), so it cannot be used directly as a scroll target.
-  function absTop(node) {
-    return node.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
-  }
-
-  function scrollToTarget(id) {
-    if (id === 'home') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (id === 'about') {
-      window.scrollTo({ top: trackScrollable() * 0.50, behavior: 'smooth' });
-    } else {
-      const node = document.getElementById(id);
-      if (node) window.scrollTo({ top: Math.max(0, absTop(node) - 90), behavior: 'smooth' });
-    }
-  }
-
-  function setupInteractions() {
-    document.addEventListener('click', (e) => {
-      // Resume buttons (navbar + hero)
-      const resumeBtn = e.target.closest('[data-action="resume"]');
-      if (resumeBtn) {
-        e.preventDefault();
-        openPdf('Resume — Harsh Patil', CONFIG.resumePdf);
-        return;
-      }
-
-      // Nav links and brand
-      const navEl = e.target.closest('[data-nav]');
-      if (navEl) {
-        e.preventDefault();
-        const id = navEl.getAttribute('data-nav');
-        if (navMenu) navMenu.classList.remove('open');
-        setActiveNav(id);
-        scrollToTarget(id);
-      }
-    });
-
-    if (exploreBtn) {
-      exploreBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        scrollToTarget('projects');
-      });
-    }
-
-    if (mobileToggle && navMenu) {
-      mobileToggle.addEventListener('click', () => navMenu.classList.toggle('open'));
-    }
-
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
-  }
-
-  /* =====================================================================
-     DOCUMENT SECTIONS — rendered from CONFIG
-     ===================================================================== */
+  // attrs are set with setAttribute, which stores the string verbatim: values
+  // passed here must NOT go through esc(), or the entities land in the
+  // attribute itself. html is assigned to innerHTML, which always needs it.
   function el(tag, attrs, html) {
     const n = document.createElement(tag);
-    if (attrs) Object.keys(attrs).forEach(k => n.setAttribute(k, attrs[k]));
+    if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     if (html != null) n.innerHTML = html;
     return n;
   }
 
   function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(s).replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
   }
 
+  /* =====================================================================
+     SECTION RENDERING
+     ===================================================================== */
   function renderProjects() {
     const grid = document.getElementById('projects-grid');
     if (!grid) return;
-    CONFIG.projects.forEach(p => {
-      const b = BADGE[p.category] || BADGE.ML;
-      const card = el('article', { class: 'proj-card reveal' });
-      card.innerHTML =
-        '<div style="position:relative;aspect-ratio:16/9;background:' + b.thumbBg + '">' +
-          '<img src="' + esc(p.image) + '" alt="' + esc(p.title) + ' screenshot" loading="lazy" ' +
-            'style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top left;display:block" />' +
-          '<span style="position:absolute;top:14px;left:14px;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.10em;text-transform:uppercase;color:' + b.color + ';background:' + b.bg + ';border:1px solid ' + b.border + '">' + esc(p.category) + '</span>' +
-        '</div>' +
-        '<div style="padding:22px;display:flex;flex-direction:column;gap:14px;flex:1">' +
-          '<h3 style="margin:0;font-family:\'Space Grotesk\',sans-serif;font-size:19px;font-weight:600;letter-spacing:-0.01em;line-height:1.3;color:#F5F5F7">' + esc(p.title) + '</h3>' +
-          '<p style="margin:-4px 0 0;font-size:14px;line-height:1.6;font-weight:500;color:#C4B5FD">' + esc(p.tagline) + '</p>' +
-          '<p style="margin:0;font-size:14.5px;line-height:1.7;color:#9CA3AF">' + esc(p.description) + '</p>' +
-          '<div style="display:flex;flex-wrap:wrap;gap:7px">' +
-            p.tech.map(t => '<span class="doc-chip">' + esc(t) + '</span>').join('') +
-          '</div>' +
-          '<div style="margin-top:auto;padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px">' +
-            '<a href="' + esc(p.github) + '" target="_blank" rel="noopener" style="display:flex;align-items:center;min-height:44px;font-size:14px;font-weight:600">View Details →</a>' +
-          '</div>' +
-        '</div>';
+
+    // Every card carries the same blocks in the same order, so the grid can
+    // size them all identically.
+    CONFIG.projects.forEach((p, i) => {
+      // The card is the control that opens itself, so it has to be reachable
+      // by keyboard. Nothing inside a closed card is focusable — the GitHub
+      // link is display:none until the card opens — so without this there is
+      // no way to a project without a pointer.
+      const card = el('article', {
+        class: 'proj reveal', tabindex: '0', 'aria-expanded': 'false'
+      });
+
+      const media = el('div', { class: 'proj-media' });
+      media.appendChild(el('img', {
+        src: p.image,
+        // Not esc(): setAttribute stores the string as given and never parses
+        // entities, so escaping here puts a literal "&amp;" in the alt text.
+        alt: p.title + ' screenshot',
+        loading: i === 0 ? 'eager' : 'lazy',
+        decoding: 'async'
+      }));
+      card.appendChild(media);
+
+      const body = el('div', { class: 'proj-body' });
+      body.appendChild(el('span', { class: 'proj-cat' }, esc(p.category)));
+      body.appendChild(el('h3', { class: 'proj-title' }, esc(p.title)));
+      body.appendChild(el('p', { class: 'proj-tagline' }, esc(p.tagline)));
+      body.appendChild(el('p', { class: 'proj-desc' }, esc(p.description)));
+
+      const tags = el('p', { class: 'tags' });
+      p.tech.forEach(t => tags.appendChild(el('span', { class: 'tag' }, esc(t))));
+      body.appendChild(tags);
+
+      const foot = el('div', { class: 'proj-foot' });
+      foot.appendChild(el('a', {
+        class: 'proj-link', href: p.github, target: '_blank', rel: 'noopener'
+      }, 'View on GitHub <span aria-hidden="true">&rarr;</span>'));
+      body.appendChild(foot);
+
+      card.appendChild(body);
       grid.appendChild(card);
     });
   }
 
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+  /* =====================================================================
+     CERTIFICATES — card stack
+
+     Reference: Skiper UI "Skiper16" (Card stack scroll). Each certificate
+     is a card in a sticky slot, so as the section scrolls every card
+     pins a little below the one before it and the next slides up over
+     it. Every pinned card shrinks from its top edge while the rest of the
+     stack arrives — the first to 0.5, each later one 0.1 less far, the
+     last not at all — which is what leaves the stack reading as depth.
+
+     Its values are kept: 20px between pinned cards, origin-top scaling,
+     max(0.5, 1 - (cards after it) * 0.1). The component leans on Lenis
+     to smooth the whole page's scroll; here only the scale is smoothed,
+     so the rest of the page scrolls exactly as it did.
+     ===================================================================== */
+  const CERT_STACK = {
+    offset: 20,     // px between pinned cards — the component's own
+    step: 0.1,      // how much smaller each card ends than the one above
+    floor: 0.5,     // the smallest a card gets
+    smooth: 0.5     // s the scale takes to catch the scroll
+  };
+
   function renderCertificates() {
-    const grid = document.getElementById('certs-grid');
-    if (!grid) return;
-    CONFIG.certificates.forEach(c => {
-      const card = el('button', { class: 'cert-card reveal', type: 'button' });
-      card.innerHTML =
-        '<div style="position:relative;aspect-ratio:4/3;background:linear-gradient(150deg,rgba(30,22,54,.95),rgba(14,12,24,.95))">' +
-          '<img src="' + esc(c.thumb) + '" alt="' + esc(c.title) + ' certificate" loading="lazy" ' +
-            'style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block" />' +
-        '</div>' +
-        '<div style="padding:18px;display:flex;flex-direction:column;gap:7px;flex:1">' +
-          '<p style="margin:0;font-size:15px;font-weight:600;line-height:1.4;color:#F5F5F7">' + esc(c.title) + '</p>' +
-          '<p style="margin:0;font-size:13px;color:#8B8798">' + esc(c.issuer) + '</p>' +
-          '<span style="margin-top:auto;padding-top:10px;font-size:13.5px;font-weight:600;color:#A855F7">View Certificate →</span>' +
-        '</div>';
-      card.addEventListener('click', () => openImage(c.title, c.thumb, c.credential));
-      grid.appendChild(card);
+    const list = document.getElementById('certs-list');
+    if (!list) return;
+
+    CONFIG.certificates.forEach((c, i) => {
+      const slot = el('div', { class: 'cert-slot' });
+      slot.style.setProperty('--i', i);
+      const card = el('article', { class: 'cert-card' });
+
+      const open = el('button', {
+        class: 'cert-open', type: 'button',
+        'aria-label': 'Preview the ' + c.title + ' certificate'
+      });
+      open.appendChild(el('img', {
+        class: 'cert-shot', src: c.thumb,
+        // Attribute, not markup: esc() here would read out as "&amp;".
+        alt: '', loading: 'lazy', decoding: 'async'
+      }));
+      open.addEventListener('click', () => openImage(c.title, c.thumb, c.credential));
+
+      const bar = el('div', { class: 'cert-bar' });
+      const meta = el('div', { class: 'cert-meta' });
+      meta.appendChild(el('h3', { class: 'cert-title' }, esc(c.title)));
+      meta.appendChild(el('p', { class: 'cert-issuer' }, esc(c.issuer)));
+      bar.appendChild(meta);
+      bar.appendChild(el('a', {
+        class: 'cert-link', href: c.credential,
+        target: '_blank', rel: 'noopener noreferrer'
+      }, 'View Certificate <span aria-hidden="true">&rarr;</span>'));
+
+      card.appendChild(open);
+      card.appendChild(bar);
+      slot.appendChild(card);
+      list.appendChild(slot);
     });
+
+    // The last card's hold: the stack stays pinned while this scrolls past,
+    // which is the stretch the cards above it spend settling.
+    list.appendChild(el('div', { class: 'cert-stack-end', 'aria-hidden': 'true' }));
+  }
+
+  function setupCertStack(gsap, ScrollTrigger) {
+    const stack = document.getElementById('certs-list');
+    if (!stack) return;
+    const slots = Array.prototype.slice.call(stack.querySelectorAll('.cert-slot'));
+    const n = slots.length;
+    if (n < 2 || reduceMotion) return;
+
+    const cards = slots.map(s => s.querySelector('.cert-card'));
+    const targets = slots.map((s, i) => Math.max(CERT_STACK.floor, 1 - (n - i - 1) * CERT_STACK.step));
+    // quickTo takes one property, and "scale" is a shorthand it refuses.
+    const setters = cards.map(card => {
+      const x = gsap.quickTo(card, 'scaleX', { duration: CERT_STACK.smooth, ease: 'power3.out' });
+      const y = gsap.quickTo(card, 'scaleY', { duration: CERT_STACK.smooth, ease: 'power3.out' });
+      return v => { x(v); y(v); };
+    });
+
+    // Worked out from the layout rather than from where the slots are on
+    // screen: a pinned slot's box is wherever it is pinned, so measuring
+    // one mid-stack reads its pin, not its place in the page.
+    let m = null;
+    function measure() {
+      // Every slot the same height, as in the component. The stack lets go
+      // when its end reaches the pinned slots, and slots of different
+      // heights reached it at different moments: the taller ones were
+      // pushed up first and the cards slid into one another as they left.
+      // A card's own height does not depend on its slot's, so it can be read
+      // with the slots' heights left set — clearing them first shifted the
+      // page for a moment on every refresh.
+      let tallest = 0;
+      cards.forEach(c => { tallest = Math.max(tallest, c.offsetHeight); });
+      const px = tallest + 'px';
+      slots.forEach(s => { if (s.style.height !== px) s.style.height = px; });
+
+      const stackTop = absTop(stack);
+      const cs = getComputedStyle(slots[0]);
+      const pin = parseFloat(cs.top);
+      const pitch = tallest + parseFloat(cs.marginBottom);
+      m = {
+        stick: slots.map((s, i) => stackTop + i * pitch - pin),
+        // Everything lets go together, once the end of the stack reaches
+        // the pinned slots.
+        release: stackTop + stack.offsetHeight - pin - pitch
+      };
+    }
+
+    function update(instant) {
+      if (!m) return;
+      const y = window.scrollY || window.pageYOffset || 0;
+      cards.forEach((card, i) => {
+        if (targets[i] === 1) return;
+        const span = Math.max(1, m.release - m.stick[i]);
+        const s = 1 + (targets[i] - 1) * clamp01((y - m.stick[i]) / span);
+        if (instant) gsap.set(card, { scale: s });
+        setters[i](s);
+      });
+    }
+
+    measure();
+    update(true);
+    ScrollTrigger.create({ start: 0, end: 'max', onUpdate: () => update(false) });
+    ScrollTrigger.addEventListener('refresh', () => { measure(); update(false); });
+    // A card's height follows its title's wrapping, so re-measure when the
+    // stack's width changes.
+    if (window.ResizeObserver) {
+      let t = 0, w = stack.clientWidth;
+      new ResizeObserver(() => {
+        if (stack.clientWidth === w) return;
+        w = stack.clientWidth;
+        clearTimeout(t);
+        t = setTimeout(() => refreshScroll(0), 120);
+      }).observe(stack);
+    }
   }
 
   function renderContacts() {
     const list = document.getElementById('contact-list');
     if (list) {
       CONTACTS.forEach(c => {
-        const a = el('a', { class: 'contact-card', href: c.href, target: '_blank', rel: 'noopener' });
-        a.innerHTML =
-          '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:17px;font-family:ui-monospace,Menlo,monospace;font-weight:600;color:#EDE9FE;background:linear-gradient(135deg,rgba(139,92,246,.30),rgba(99,102,241,.20));border:1px solid rgba(139,92,246,.35)">' + esc(c.icon) + '</span>' +
-          '<span style="flex:1">' +
-            '<span style="display:block;font-size:15.5px;font-weight:600;color:#F5F5F7">' + esc(c.label) + '</span>' +
-            '<span style="display:block;margin-top:3px;font-size:13.5px;color:#8B8798">' + esc(c.desc) + '</span>' +
-            '<span style="display:block;margin-top:4px;font-size:12.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#A855F7;word-break:break-all">' + esc(c.meta) + '</span>' +
-          '</span>' +
-          '<span style="font-size:17px;color:#A855F7">→</span>';
+        const a = el('a', {
+          class: 'contact-card', href: c.href,
+          target: c.href.startsWith('mailto:') ? '_self' : '_blank', rel: 'noopener'
+        });
+        a.appendChild(el('span', { class: 'contact-icon' }, esc(c.icon)));
+        const txt = el('span');
+        txt.appendChild(el('p', { class: 'contact-label' }, esc(c.label)));
+        txt.appendChild(el('p', { class: 'contact-desc' }, esc(c.desc)));
+        txt.appendChild(el('p', { class: 'contact-meta' }, esc(c.meta)));
+        a.appendChild(txt);
         list.appendChild(a);
       });
     }
 
-    const fl = document.getElementById('footer-links');
-    if (fl) {
+    const links = document.getElementById('footer-links');
+    if (links) {
       NAV.forEach(n => {
-        const a = el('a', { href: '#' + n.id, 'data-nav': n.id, style: 'display:flex;align-items:center;min-height:44px;font-size:14.5px;color:#9CA3AF' }, esc(n.label));
-        fl.appendChild(a);
+        links.appendChild(el('a', { href: '#' + n.id, 'data-nav': n.id }, esc(n.label)));
       });
     }
 
-    const fc = document.getElementById('footer-connect');
-    if (fc) {
+    const connect = document.getElementById('footer-connect');
+    if (connect) {
       CONTACTS.forEach(c => {
-        const a = el('a', { href: c.href, target: '_blank', rel: 'noopener', style: 'display:flex;align-items:center;gap:11px;min-height:44px;font-size:14.5px;color:#9CA3AF' },
-          '<span style="font-family:ui-monospace,Menlo,monospace;font-size:13px;color:#A855F7">' + esc(c.icon) + '</span><span>' + esc(c.label) + '</span>');
-        fc.appendChild(a);
+        connect.appendChild(el('a', {
+          href: c.href,
+          target: c.href.startsWith('mailto:') ? '_self' : '_blank',
+          rel: 'noopener'
+        }, esc(c.label)));
       });
     }
   }
 
-  function setupReveals() {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(en => {
-        if (en.isIntersecting) {
-          en.target.classList.add('shown');
-          io.unobserve(en.target);
+  /* =====================================================================
+     NAVIGATION
+     ===================================================================== */
+  function absTop(node) {
+    // Document offset. offsetTop is relative to the offsetParent, so it
+    // cannot be used directly as a scroll target.
+    return node.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
+  }
+
+  function scrollToId(id) {
+    const target = document.getElementById(id);
+    if (!target) return;
+    // Home is the top of the page, full stop. Measuring it lands wherever
+    // the pinned hero happens to be sitting, which is the end of its
+    // animation rather than the start of the page.
+    const top = id === 'home' ? 0 : Math.max(0, absTop(target) - 78);
+    window.scrollTo({ top: top, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+
+  function setupNav() {
+    const toggle = document.getElementById('nav-toggle');
+    const links = document.getElementById('nav-links');
+
+    // One place that owns the menu's state. The two closers below used to set
+    // aria-expanded and leave the label behind, so after a link was tapped the
+    // button still announced itself as "Close navigation" while it opened.
+    function setMenu(open) {
+      if (!links) return;
+      links.classList.toggle('is-open', open);
+      if (!toggle) return;
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+    }
+
+    if (toggle && links) {
+      toggle.addEventListener('click', () => {
+        setMenu(!links.classList.contains('is-open'));
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const resume = e.target.closest('[data-action="resume"]');
+      if (resume) {
+        e.preventDefault();
+        openPdf('Harsh Patil - Resume', CONFIG.resumePdf);
+        return;
+      }
+
+      const jump = e.target.closest('a[href^="#"]');
+      if (jump) {
+        const id = jump.getAttribute('href').slice(1);
+        if (!id || !document.getElementById(id)) return;
+        e.preventDefault();
+        scrollToId(id);
+        if (links && links.classList.contains('is-open')) setMenu(false);
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (modalRoot.firstChild) closeModal();
+        else if (links && links.classList.contains('is-open')) setMenu(false);
+      }
+    });
+  }
+
+  function setActiveNav(id) {
+    document.querySelectorAll('.nav-link').forEach(a => {
+      a.classList.toggle('is-active', a.getAttribute('data-nav') === id);
+    });
+  }
+
+  /* =====================================================================
+     TEXT ANIMATE — slide left, by character
+
+     Reference: Magic UI "TextAnimate" with animation="slideLeft" and
+     by="character". Its values are kept: each character starts 20px to
+     the right at zero opacity and slides into place over 300ms, 30ms after
+     the one before it, and it replays every time the text comes back into
+     view — scrolling down onto it or back up to it — because the
+     component's once defaults to false.
+
+     Two departures, both about length. The component splits the string
+     into bare characters, which lets a long paragraph break in the middle
+     of a word: every character is its own inline box. Here the characters
+     sit inside a no-wrap box per word, so the text wraps exactly where it
+     did. And 30ms a character suits the component's demos, which are a
+     few words long; across a ~200-character paragraph it is a six-second
+     crawl. The stagger is kept but capped, so no block takes longer than
+     TEXT_ANIMATE.spread to finish arriving. "About Me" is short enough to
+     get the full 30ms.
+     ===================================================================== */
+  const TEXT_ANIMATE = {
+    stagger: 30,    // ms between characters — the component's own
+    spread: 1200    // ms — the longest a whole block may take to arrive
+  };
+
+  function setupTextAnimate() {
+    const hosts = Array.prototype.slice.call(document.querySelectorAll('.text-animate'));
+    // Reduced motion leaves the text as authored: nothing is split, so
+    // nothing can be left hidden.
+    if (!hosts.length || reduceMotion) return;
+
+    hosts.forEach(host => {
+      const text = host.textContent.replace(/\s+/g, ' ').trim();
+      if (!text) return;
+
+      const chars = Array.from(text.replace(/ /g, ''));
+      const step = Math.min(TEXT_ANIMATE.stagger,
+        TEXT_ANIMATE.spread / Math.max(1, chars.length - 1));
+
+      // Split into a letter per box, the text stops being a sentence to a
+      // screen reader: the paragraph dropped out of the accessibility tree
+      // as a run of single characters. So the sentence is kept whole for
+      // assistive tech and the animated copy is hidden from it. The whole
+      // copy is also the one that cannot be selected, so copying the
+      // paragraph gets the visible letters once rather than the text twice.
+      //
+      // A heading can simply be labelled, and must be: its name is built
+      // from its contents, so a hidden copy inside it came out as
+      // "About MeAbout Me". A paragraph cannot carry a label reliably, so
+      // it keeps the hidden copy.
+      host.textContent = '';
+      const shown = el('span', { 'aria-hidden': 'true' });
+      if (/^H[1-6]$/.test(host.tagName)) {
+        host.setAttribute('aria-label', text);
+      } else {
+        const spoken = el('span', { class: 'ta-sr' });
+        spoken.textContent = text;
+        host.appendChild(spoken);
+      }
+      host.appendChild(shown);
+
+      let n = 0;
+      const words = text.split(' ');
+      words.forEach((word, wi) => {
+        const box = el('span', { class: 'ta-word' });
+        // Array.from walks code points, so an accented letter or a symbol
+        // made of a surrogate pair stays one glyph rather than two halves.
+        Array.from(word).forEach(ch => {
+          const c = el('span', { class: 'ta-char' });
+          c.textContent = ch;
+          c.style.transitionDelay = Math.round(n * step) + 'ms';
+          box.appendChild(c);
+          n++;
+        });
+        shown.appendChild(box);
+        // A real space between words, so the line still breaks there and
+        // copied text still reads as a sentence.
+        if (wi < words.length - 1) shown.appendChild(document.createTextNode(' '));
+      });
+      host.classList.add('is-split');
+
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting)) {
+          host.classList.add('is-in');
+        } else if (host.classList.contains('is-in')) {
+          // Back to the start with no transition, so the next entry plays
+          // from the top rather than from wherever a staggered reverse had
+          // got to — scrolling away and straight back would otherwise
+          // leave half the characters never having left.
+          host.classList.add('ta-reset');
+          host.classList.remove('is-in');
+          // eslint-disable-next-line no-unused-expressions
+          host.offsetWidth;
+          host.classList.remove('ta-reset');
+        }
+      }, { threshold: 0 });
+      io.observe(host);
+    });
+  }
+
+  /* =====================================================================
+     TEXT ANIMATE — fade in, by line
+
+     Reference: Magic UI "TextAnimate" with animation="fadeIn" and
+     by="line". Its values are kept: each line starts at zero opacity and
+     20px low and rises into place over 300ms, 60ms after the one before.
+     The component's "line" is a line of its source, split on newlines —
+     in its own demo, a paragraph — so here each paragraph of the About
+     columns is one line, and nothing is split.
+
+     It plays when the text is scrolled down onto, and only then. Coming
+     back up onto text already passed, it is simply there. Once the text
+     has gone back below the screen — the visitor has scrolled up above
+     it — it resets, so the next time it is scrolled down onto it plays
+     again. Every paragraph is watched on its own, so on a phone, where
+     the columns stack, each one arrives as it is reached rather than all
+     six playing while most of them are still off screen.
+     ===================================================================== */
+  const FADE_LINES = { stagger: 60 };   // ms — the component's own for lines
+
+  function setupFadeLines() {
+    const hosts = Array.prototype.slice.call(document.querySelectorAll('.fade-lines'));
+    // Reduced motion never arms it, so the text is never hidden.
+    if (!hosts.length || reduceMotion) return;
+
+    hosts.forEach(host => {
+      const lines = Array.prototype.slice.call(host.querySelectorAll('p'));
+      if (!lines.length) return;
+
+      // Without transition, for the two changes nobody should see happen:
+      // showing text reached from above, and resetting text left below.
+      function instantly(line, shown) {
+        line.classList.add('fl-instant');
+        line.style.transitionDelay = '';
+        line.classList.toggle('is-in', shown);
+        // eslint-disable-next-line no-unused-expressions
+        line.offsetWidth;
+        line.classList.remove('fl-instant');
+      }
+
+      const io = new IntersectionObserver(entries => {
+        let queued = 0;
+        // DOM order, so lines arriving together are staggered top to
+        // bottom and left to right, whatever order the records came in.
+        entries
+          .slice()
+          .sort((a, b) => lines.indexOf(a.target) - lines.indexOf(b.target))
+          .forEach(e => {
+            const line = e.target;
+            const top = e.boundingClientRect.top;
+            const floor = e.rootBounds ? e.rootBounds.bottom : window.innerHeight;
+            // Which way it arrived is read from which half of the screen it
+            // lands in, not from whether its top is on screen. A short line
+            // — "Based in Pune", 26px — can cross the top edge and land
+            // wholly inside in a single frame of a fast scroll, top already
+            // on screen, and was being read as arriving from below and
+            // faded in on the way up. Coming down onto it lands near the
+            // foot; coming back up lands near the head, however fast.
+            const fromBelow = top > floor / 2;
+            if (e.isIntersecting) {
+              if (line.classList.contains('is-in')) return;
+              if (fromBelow) {
+                // Came up from below: the visitor is scrolling down onto it.
+                line.style.transitionDelay = (queued++ * FADE_LINES.stagger) + 'ms';
+                line.classList.add('is-in');
+              } else {
+                // Came in from above: scrolling back up onto it.
+                instantly(line, true);
+              }
+            } else if (top >= floor && line.classList.contains('is-in')) {
+              // Gone back below the screen: ready to play again.
+              instantly(line, false);
+            }
+          });
+      }, { threshold: 0, rootMargin: '0px 0px -6% 0px' });
+
+      host.classList.add('is-armed');
+      lines.forEach(l => io.observe(l));
+    });
+  }
+
+  /* =====================================================================
+     SCROLL CHOREOGRAPHY (GSAP ScrollTrigger — no scroll listeners)
+     ===================================================================== */
+  let heroProgress = 0;
+
+  function setupScroll() {
+    const reveals = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+
+    if (reduceMotion || !window.gsap || !window.ScrollTrigger) {
+      reveals.forEach(n => n.classList.add('is-in'));
+      setupSectionSpy();
+      return;
+    }
+
+    const gsap = window.gsap;
+    const ScrollTrigger = window.ScrollTrigger;
+    gsap.registerPlugin(ScrollTrigger);
+
+    // A phone's address bar sliding away is a viewport resize, and
+    // recomputing a pin in the middle of the scroll that caused it is how
+    // the hero ends up jumping. Width changes still refresh.
+    ScrollTrigger.config({ ignoreMobileResize: true });
+
+    // Reveals: batched so a grid of cards staggers as one group rather than
+    // firing one trigger per card.
+    ScrollTrigger.batch(reveals, {
+      start: 'top 86%',
+      once: true,
+      onEnter: batch => {
+        batch.forEach((n, i) => setTimeout(() => n.classList.add('is-in'), i * 70));
+      }
+    });
+
+    const orbit = document.getElementById('hero-orbit');
+
+    // The hero pins for a short distance and that distance is spent on the
+    // text swap: the first scroll is consumed by the animation, a further
+    // scroll releases the page. Native scroll drives it, so wheel, trackpad
+    // and touch all behave, and the page can never end up stuck.
+    if (heroSwap) {
+      ScrollTrigger.create({
+        trigger: '#home',
+        start: 'top top',
+        end: () => '+=' + Math.round(window.innerHeight * 0.85),
+        pin: true,
+        pinSpacing: true,
+        anticipatePin: 1,
+        scrub: true,
+        invalidateOnRefresh: true,
+        onUpdate: self => { heroSwap(self.progress); }
+      });
+    }
+
+    // Point-cloud dispersion and portrait parallax are driven by About
+    // rising into view, which is exactly the stretch after the pin releases.
+    // Keeping them off the pinned range is what lets the hero sit completely
+    // still while only the text moves.
+    ScrollTrigger.create({
+      trigger: '#about',
+      start: 'top bottom',
+      end: 'top top',
+      scrub: true,
+      invalidateOnRefresh: true,
+      onUpdate: self => {
+        heroProgress = self.progress;
+        if (orbit) {
+          orbit.style.transform =
+            'translate3d(0,' + (self.progress * 64).toFixed(2) + 'px,0) scale(' +
+            (1 - self.progress * 0.06).toFixed(4) + ')';
+        }
+      }
+    });
+
+    // Everything that arrives after the first measurement moves the page
+    // under it: the web fonts, the project screenshots, the row collapsing
+    // into a strip. A trigger measured mid-change keeps those numbers, and
+    // for a pinned hero that is not a small error — a start measured
+    // against the wrong page puts the hero's pin past its end while the
+    // visitor is at the top of the page, which leaves the hero pushed a
+    // screen down and the top of the page empty. So: measure again once
+    // each of those has landed, and once more after everything has.
+    window.addEventListener('load', () => refreshScroll(300));
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => refreshScroll(300)).catch(() => {});
+    }
+    setTimeout(() => refreshScroll(0), 1400);
+
+    setupSectionTransitions(gsap, ScrollTrigger);
+    setupCertStack(gsap, ScrollTrigger);
+
+    // Metric counters.
+    document.querySelectorAll('.metric dd').forEach(node => {
+      const target = parseFloat(node.getAttribute('data-count'));
+      const decimals = parseInt(node.getAttribute('data-decimals') || '0', 10);
+      const suffix = node.getAttribute('data-suffix') || '';
+      if (isNaN(target)) return;
+
+      const obj = { v: 0 };
+      ScrollTrigger.create({
+        trigger: node,
+        start: 'top 92%',
+        once: true,
+        onEnter: () => {
+          gsap.to(obj, {
+            v: target,
+            duration: 1.1,
+            ease: 'power2.out',
+            onUpdate: () => { node.textContent = obj.v.toFixed(decimals) + suffix; }
+          });
         }
       });
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
-    document.querySelectorAll('.reveal').forEach(n => io.observe(n));
+    });
+
+    setupSectionSpy();
+  }
+
+  /* =====================================================================
+     PROJECTS ⇄ CERTIFICATIONS — directional page transition
+
+     Each side arrives from the direction the visitor is travelling:
+     scrolling down into Certifications, its content fades up from below;
+     scrolling back up into Projects, its content fades down from above.
+
+     It fires on the crossing rather than being scrubbed to it, so it
+     reads as a page changing rather than as something being dragged, and
+     it plays every time that crossing is made, not only the first.
+
+     Only each section's .wrap moves. The backgrounds behind them — the
+     fluid field behind Projects — stay exactly where they are, and the
+     transform is cleared when the fade lands, so nothing is left sitting
+     on the carousel's 3D or on the strip's measurements.
+     ===================================================================== */
+  const SECTION_FADE = {
+    distance: 80,    // px the content travels in
+    duration: 0.85,  // s
+    rearm: 120       // px back past the boundary before it may play again
+  };
+
+  function setupSectionTransitions(gsap, ScrollTrigger) {
+    const projects = document.getElementById('projects');
+    const certs = document.getElementById('certifications');
+    if (!projects || !certs) return;
+    const pWrap = projects.querySelector(':scope > .wrap');
+    const cWrap = certs.querySelector(':scope > .wrap');
+    if (!pWrap || !cWrap) return;
+
+    function play(node, fromY) {
+      // A quick reversal mid-fade restarts it cleanly rather than stacking
+      // a second tween on top of the first.
+      gsap.killTweensOf(node);
+      gsap.fromTo(node,
+        { y: fromY, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: SECTION_FADE.duration,
+          ease: 'power3.out',
+          clearProps: 'transform,opacity'
+        });
+    }
+
+    // The crossings are read from where the two edges sit on screen, not
+    // from scroll positions. The page moves under a visitor who is not
+    // scrolling at all: a card opening grows the strip above, scroll
+    // anchoring holds what they are looking at in place by shifting the
+    // scroll position, and ScrollTrigger re-measures a beat later. A
+    // boundary held as a scroll position reads every one of those as a
+    // crossing — opening a project card faded the whole Projects section
+    // out and dropped it back in from the top. On screen, nothing crossed,
+    // so nothing plays.
+    const edges = () => ({
+      certsTop: certs.getBoundingClientRect().top,
+      projBottom: projects.getBoundingClientRect().bottom,
+      h: window.innerHeight
+    });
+
+    // Each fade plays once per real crossing and is only re-armed once the
+    // visitor has gone a clear distance back the other way, so a trackpad
+    // resting on the boundary cannot flash the section by re-crossing it a
+    // few pixels at a time.
+    let downArmed = true;
+    let upArmed = true;
+    let last = edges();
+
+    function check() {
+      // Mid-refresh the page is being measured, not looked at.
+      if (ScrollTrigger.isRefreshing) return;
+      const now = edges();
+      const downLine = now.h * 0.85;   // Certifications' top rising past here
+      const upLine = now.h * 0.15;     // Projects' bottom falling past here
+
+      // Down: Projects → Certifications, content rises from below.
+      if (downArmed && last.certsTop > downLine && now.certsTop <= downLine) {
+        downArmed = false;
+        play(cWrap, SECTION_FADE.distance);
+      }
+      // Up: Certifications → Projects, content drops from above.
+      if (upArmed && last.projBottom < upLine && now.projBottom >= upLine) {
+        upArmed = false;
+        play(pWrap, -SECTION_FADE.distance);
+      }
+
+      if (now.certsTop > downLine + SECTION_FADE.rearm) downArmed = true;
+      if (now.projBottom < upLine - SECTION_FADE.rearm) upArmed = true;
+      last = now;
+    }
+
+    // Riding ScrollTrigger's own scroll handling rather than adding a
+    // listener of its own.
+    ScrollTrigger.create({ start: 0, end: 'max', onUpdate: check });
+    // Wherever a re-measure leaves the page is the new starting point, not
+    // a crossing.
+    ScrollTrigger.addEventListener('refresh', () => { last = edges(); });
+  }
+
+  function setupSectionSpy() {
+    const ids = NAV.map(n => n.id);
+    const sections = ids.map(id => document.getElementById(id)).filter(Boolean);
+    if (!sections.length) return;
+
+    // IntersectionObserver rather than a scroll handler. rootMargin biases
+    // the "active" band toward the upper third of the viewport.
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(en => { if (en.isIntersecting) setActiveNav(en.target.id); });
+    }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+
+    sections.forEach(s => io.observe(s));
+  }
+
+  /* =====================================================================
+     HERO POINT CLOUD (Three.js)
+
+     A drifting cloud of points standing in for an embedding space: it is
+     the shape of the work on this page, not decoration for its own sake.
+     Three layers — ambient drift, pointer parallax, scroll dispersion.
+     ===================================================================== */
+  // Probed once, and the probe hands its context straight back. Browsers cap
+  // how many WebGL contexts can be live at a time, and each probe was
+  // holding one open for the life of the page — two probes for the two
+  // contexts this page actually wants, the hero and the projects
+  // background. Whichever renderer asked last could be refused, which is
+  // why the background sometimes only turned up after a reload or three.
+  let webglProbe = null;
+
+  /* ---------------------------------------------------------------------
+     ScrollTrigger measures the page once and caches where every trigger
+     starts and ends. Anything that changes the page's height afterwards
+     leaves those numbers describing a page that no longer exists — and the
+     hero is pinned, so a stale measurement strands it: the pin holds its
+     end transform, the hero sits a screen further down than it should, and
+     the top of the page is an empty field of stars.
+
+     The projects row alone changes the section's height by well over a
+     thousand pixels when it becomes a strip, and again whenever a card is
+     opened. So every such change asks for a refresh here, debounced, since
+     several of them tend to land together.
+     --------------------------------------------------------------------- */
+  let refreshTimer = 0;
+  let refreshAt = 0;
+
+  function refreshScroll(delay) {
+    if (!window.ScrollTrigger) return;
+    const wait = delay == null ? 180 : delay;
+    const when = performance.now() + wait;
+    // The longest outstanding wait wins. These used to share one timer, so a
+    // short request cancelled a long one — a certificate row settling at 120ms
+    // would pull the refresh in ahead of a card that was still growing for
+    // another 440, and the page was measured mid-change.
+    if (refreshTimer && when <= refreshAt) return;
+    clearTimeout(refreshTimer);
+    refreshAt = when;
+    refreshTimer = setTimeout(() => {
+      refreshTimer = 0;
+      window.ScrollTrigger.refresh();
+    }, wait);
+  }
+
+  function webglAvailable() {
+    if (webglProbe !== null) return webglProbe;
+    try {
+      const c = document.createElement('canvas');
+      const gl = window.WebGLRenderingContext &&
+                 (c.getContext('webgl') || c.getContext('experimental-webgl'));
+      if (gl) {
+        const lose = gl.getExtension('WEBGL_lose_context');
+        if (lose) lose.loseContext();
+      }
+      webglProbe = !!gl;
+    } catch (e) {
+      webglProbe = false;
+    }
+    return webglProbe;
+  }
+
+  function dotTexture(THREE) {
+    const size = 64;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    grd.addColorStop(0.0, 'rgba(255,255,255,1)');
+    grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+    grd.addColorStop(1.0, 'rgba(255,255,255,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, size, size);
+    const tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  function buildLayer(THREE, count, radius, size, texture, tight) {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+      // Even angular spread, random radius biased outward for a shell look.
+      const u = Math.random() * 2 - 1;
+      const theta = Math.random() * Math.PI * 2;
+      const r = radius * (tight ? Math.cbrt(Math.random()) : 0.55 + Math.random() * 0.45);
+      const s = Math.sqrt(1 - u * u);
+
+      pos[i * 3]     = r * s * Math.cos(theta);
+      pos[i * 3 + 1] = r * s * Math.sin(theta) * 0.82;   // slightly oblate
+      pos[i * 3 + 2] = r * u;
+    }
+
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+
+    const mat = new THREE.PointsMaterial({
+      size: size,
+      map: texture,
+      // Every star is white.
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending
+    });
+
+    return new THREE.Points(geo, mat);
+  }
+
+  async function initHero3D() {
+    const host = document.getElementById('hero-canvas');
+    if (!host || reduceMotion || !webglAvailable()) return;
+
+    let THREE;
+    try {
+      THREE = await import(THREE_URL);
+    } catch (e) {
+      // CDN unreachable — the CSS gradient fallback is already showing.
+      return;
+    }
+
+    const w0 = host.clientWidth || window.innerWidth;
+    const h0 = host.clientHeight || window.innerHeight;
+    const mobile = window.innerWidth < 768;
+    const tablet = window.innerWidth < 1024;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: !mobile, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2));
+    renderer.setSize(w0, h0, false);
+    renderer.setClearColor(0x000000, 0);
+    host.appendChild(renderer.domElement);
+    host.classList.add('is-live');
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(58, w0 / h0, 0.1, 100);
+    camera.position.z = 7.2;
+
+    const tex = dotTexture(THREE);
+    const group = new THREE.Group();
+
+    const dense = mobile ? 620 : tablet ? 1250 : 2400;
+    const sparse = mobile ? 90 : tablet ? 170 : 290;
+
+    const core = buildLayer(THREE, dense, 4.1, mobile ? 0.055 : 0.045, tex, true);
+    const halo = buildLayer(THREE, sparse, 5.4, mobile ? 0.13 : 0.115, tex, false);
+    group.add(core, halo);
+
+    // Offset toward the portrait side on wide screens; centred when stacked.
+    group.position.x = window.innerWidth < 900 ? 0 : 1.9;
+    scene.add(group);
+
+    const pointer = { x: 0, y: 0 };
+    const target = { x: 0, y: 0 };
+
+    if (!mobile) {
+      window.addEventListener('pointermove', (e) => {
+        target.x = (e.clientX / window.innerWidth - 0.5) * 2;
+        target.y = (e.clientY / window.innerHeight - 0.5) * 2;
+      }, { passive: true });
+    }
+
+    // Pause when the hero is off-screen or the tab is hidden. A WebGL loop
+    // running behind the Projects section is pure battery cost.
+    let visible = true;
+    let hidden = document.hidden;
+    // entries.some, not entries[0]: a callback can carry several records for
+    // the same target, and reading only the first can take a stale one — the
+    // loop then stops with the hero in plain view and nothing to start it
+    // again until the next crossing.
+    const io = new IntersectionObserver(
+      entries => { visible = entries.some(e => e.isIntersecting); },
+      { threshold: 0 }
+    );
+    io.observe(host);
+    document.addEventListener('visibilitychange', () => { hidden = document.hidden; });
+
+    const ro = new ResizeObserver(() => {
+      const w = host.clientWidth, h = host.clientHeight;
+      if (!w || !h) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+      group.position.x = window.innerWidth < 900 ? 0 : 1.9;
+    });
+    ro.observe(host);
+
+    const clock = new THREE.Clock();
+    let raf = 0;
+
+    function frame() {
+      raf = requestAnimationFrame(frame);
+      if (!visible || hidden) return;
+
+      const dt = Math.min(clock.getDelta(), 0.05);
+
+      // Ambient: continuous slow drift.
+      group.rotation.y += dt * 0.045;
+      core.rotation.z += dt * 0.012;
+      halo.rotation.z -= dt * 0.008;
+
+      // Secondary: pointer parallax, eased rather than snapped.
+      pointer.x += (target.x - pointer.x) * 0.045;
+      pointer.y += (target.y - pointer.y) * 0.045;
+      group.rotation.x = pointer.y * 0.22;
+      camera.position.x = pointer.x * 0.45;
+      camera.lookAt(0, 0, 0);
+
+      // Primary: the cloud expands and fades as the hero scrolls away.
+      const p = heroProgress;
+      group.scale.setScalar(1 + p * 0.75);
+      core.material.opacity = 0.9 * (1 - p);
+      halo.material.opacity = 0.9 * (1 - p);
+
+      renderer.render(scene, camera);
+    }
+    frame();
+
+    window.addEventListener('pagehide', (e) => {
+      // A page going into the back/forward cache is coming back alive, with
+      // this same document. Disposing the renderer there leaves the hero
+      // empty on the way back, and .is-live has already hidden the CSS
+      // fallback, so there would be nothing behind it at all.
+      if (e.persisted) return;
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      ro.disconnect();
+      core.geometry.dispose(); core.material.dispose();
+      halo.geometry.dispose(); halo.material.dispose();
+      tex.dispose();
+      renderer.dispose();
+    });
+  }
+
+  /* =====================================================================
+     PIXEL LIQUID BACKGROUND
+
+     GPU fluid sim behind Experience and Projects. Loaded only when the
+     zone is near, and skipped entirely under reduced motion or without
+     WebGL.
+
+     One canvas across both sections, not one each. A canvas per section
+     ran a simulation per section, and the two met on a line: the field
+     dipped to nothing across the join, and a plume carried down by the
+     cursor died there while an unrelated one appeared below it. A single
+     field has no join to cross — and it is one WebGL context rather than
+     two, on a page that already runs one for the hero.
+     ===================================================================== */
+  function setupFluidBackground(id) {
+    const section = document.getElementById(id);
+    if (!section || reduceMotion) return;
+    if (!webglAvailable()) return;
+
+    // Phones carry the same background, on a cheaper budget: a coarser
+    // simulation and fewer pressure iterations. It is the section's
+    // backdrop, so leaving it out on a phone made the section look like a
+    // different page, and it only ever ran there by accident — the width
+    // was read once, at load, so narrowing a window kept it while loading
+    // narrow lost it until the next reload from a wider window.
+    function settings() {
+      const small = window.innerWidth < 900;
+      return {
+        // The site's own violet ramp rather than the component's pink
+        // default, so it reads as this page's background.
+        palette: ['#050505', '#14062F', '#3A0CA3', '#6A3BE8', '#A37AFF'],
+        pixelSize: small ? 12 : 16,
+        resolution: small ? 0.24 : 0.32,
+        pressureIterations: small ? 12 : 18,
+        mouseForce: 7,
+        cursorSize: small ? 90 : 120,
+        // Restrained on purpose: this sits behind the section heading and
+        // the cards, so it reads as a tint that follows the pointer rather
+        // than a field competing with the content.
+        intensity: 0.5,
+        dissipation: 0.955,
+        opacity: 0.34
+      };
+    }
+
+    let started = false;
+    let tries = 0;
+
+    function start() {
+      if (started) return;
+      started = true;
+      import('./fluid-bg.js')
+        .then(m => m.createFluidBackground(section, settings()))
+        .catch(() => {
+          // A dropped module or CDN fetch used to end it for good, and a
+          // reload was the only way back. Two retries cover the flake;
+          // after that the section keeps its flat background.
+          started = false;
+          if (++tries < 3) setTimeout(start, 2000 * tries);
+        });
+    }
+
+    // A screen's warning, so the module and Three.js are fetched and the
+    // shaders compiled before the section arrives rather than while the
+    // visitor is already looking at it.
+    //
+    // entries.some, not entries[0]: a callback can carry several records,
+    // and reading only the first meant an arriving section could be
+    // reported behind a stale record and missed. The observer then never
+    // fired again, because by that point nothing was crossing any more —
+    // which is what left the background out on some loads and not others.
+    const io = new IntersectionObserver(entries => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      io.disconnect();
+      start();
+    }, { rootMargin: '900px 0px' });
+
+    io.observe(section);
+
+    // And a backstop, so the background never depends on that callback
+    // landing at all. The module pauses its own loop whenever the section
+    // is off screen, and Three.js is already being fetched for the hero,
+    // so starting early costs nothing either way.
+    const kick = () => { io.disconnect(); start(); };
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(kick, { timeout: 3000 });
+    } else {
+      setTimeout(kick, 2200);
+    }
+  }
+
+  /* =====================================================================
+     HERO — scroll-driven text swap
+
+     Two states share one fixed-height viewport. State A slides up and out
+     while state B slides in from below, both driven by the hero's existing
+     ScrollTrigger progress, so no extra scroll listener is added.
+     ===================================================================== */
+  // Progress here is the hero's PIN progress, not page scroll. The swap runs
+  // over the first stretch of the pin; the remainder is the settled state the
+  // hero holds before a further scroll releases it.
+  const SWAP_FROM = 0.06;
+  const SWAP_TO   = 0.62;
+
+  let heroSwap = null;
+
+  function setupHeroSwap() {
+    const swap = document.getElementById('hero-swap');
+    if (!swap) return;
+    const a = swap.querySelector('[data-state="a"]');
+    const b = swap.querySelector('[data-state="b"]');
+    if (!a || !b) return;
+
+    const bTitle = b.querySelector('.hero-title');
+    const aTitle = a.querySelector('.hero-title');
+
+    const figure = document.querySelector('.hero-figure');
+
+    // How wide the second state's title may run. The text column is the
+    // floor, but on the side-by-side layout the portrait is centred in a
+    // wider column, so there is unused room between the two. Using it lets
+    // the longer title render larger without ever reaching the portrait.
+    function availableWidth() {
+      let avail = swap.clientWidth;
+      if (!figure) return avail;
+      const s = swap.getBoundingClientRect();
+      const f = figure.getBoundingClientRect();
+      const sideBySide = f.top < s.bottom && f.bottom > s.top;
+      if (sideBySide && f.left > s.left) {
+        avail = Math.max(avail, Math.floor(f.left - s.left - 28));
+      }
+      return avail;
+    }
+
+    function fitTitle() {
+      // "AI Research Intern" is much longer than "Harsh Patil". At the same
+      // size it would wrap onto a second line and make the box taller, which
+      // would push the buttons down. Scale it to one line instead so the
+      // hero keeps its exact dimensions.
+      bTitle.style.fontSize = '';
+      bTitle.style.whiteSpace = 'nowrap';
+      swap.style.removeProperty('width');
+
+      const base = parseFloat(getComputedStyle(aTitle).fontSize);
+      // Two pixels in hand. Fitting the text to exactly the width available
+      // leaves nothing for rounding or for a font whose metrics settle a
+      // hair wider than they measured, and the box clips what it cannot
+      // hold — which is how the last letter of "Intern" went missing.
+      const avail = availableWidth() - 2;
+      if (avail > swap.clientWidth) swap.style.width = avail + 'px';
+
+      const natural = bTitle.scrollWidth;
+      if (natural > avail && natural > 0) {
+        bTitle.style.fontSize = Math.floor(base * (avail / natural) * 100) / 100 + 'px';
+      }
+
+      // Measure again and shave if it still does not fit: one pass is a
+      // prediction, and a proportional guess at a new font size is not
+      // exact. This one checks.
+      for (let i = 0; i < 3 && bTitle.scrollWidth > avail; i++) {
+        const now = parseFloat(getComputedStyle(bTitle).fontSize);
+        bTitle.style.fontSize = (Math.floor(now * 100) / 100 - 1) + 'px';
+      }
+    }
+
+    function measure() {
+      swap.classList.remove('is-ready');
+      bTitle.style.whiteSpace = 'nowrap';
+      swap.style.removeProperty('--swap-h');
+      // eslint-disable-next-line no-unused-expressions
+      swap.offsetHeight;
+      fitTitle();
+      const h = a.offsetHeight;
+      if (!h) return;
+      swap.style.setProperty('--swap-h', h + 'px');
+      swap.classList.add('is-ready');
+      render(lastQ);
+    }
+
+    let lastQ = 0;
+
+    function render(q) {
+      lastQ = q;
+      // Smoothstep keeps the ends from starting and stopping abruptly while
+      // staying tied to scroll position.
+      const e = q * q * (3 - 2 * q);
+      a.style.transform = 'translateY(' + (-e * 100).toFixed(2) + '%)';
+      b.style.transform = 'translateY(' + ((1 - e) * 100).toFixed(2) + '%)';
+      // Both reach a clean 0 at their own end: no ghost of the incoming text
+      // sitting under the hero at rest, and none of the outgoing text left
+      // behind once the swap has finished.
+      a.style.opacity = (1 - e).toFixed(3);
+      b.style.opacity = e.toFixed(3);
+    }
+
+    measure();
+    window.addEventListener('load', measure);
+    // The fitting is measured in whatever font is on screen at the time. If
+    // that was the fallback, every measurement is wrong the moment the real
+    // one arrives.
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(measure).catch(() => {});
+    }
+
+    let rt = 0;
+    const requeue = () => { clearTimeout(rt); rt = setTimeout(measure, 160); };
+    window.addEventListener('resize', requeue);
+    window.addEventListener('orientationchange', requeue);
+
+    if (reduceMotion) { render(0); return; }
+
+    heroSwap = (progress) => {
+      const q = clamp01((progress - SWAP_FROM) / (SWAP_TO - SWAP_FROM));
+      render(q);
+    };
+    render(0);
+  }
+
+  /* =====================================================================
+     PROJECTS — hover-expand strip
+
+     Animation reference: Skiper UI "skiper52" (HoverExpand_001) by
+     @gurvinder-singh02, rebuilt in vanilla CSS and JS because this site
+     carries no React and no Framer Motion. Same behaviour: the cards sit in
+     one centred row with every card but one collapsed to a narrow slice,
+     and the card under the pointer widens back to full size. The cards
+     themselves are untouched — only their width and the row layout move.
+
+     A click, and only a click, opens the full card.
+
+     Phones get a card deck instead. Six cards cannot collapse and expand
+     side by side in a phone's width, and a widening card there gives no
+     way back to the one you just left. So on a phone the cards are dealt
+     into one stack, full size, and swiped off the top one at a time, in
+     either direction, looping round. A tap opens the top card.
+     ===================================================================== */
+  const STRIP_GAP = 6;          // matches the reference's gap-1
+  const STRIP_SLICE_MIN = 40;   // narrowest a collapsed card may get
+  const STRIP_SLICE_MAX = 96;
+
+  // The phone deck, from Skiper UI "skiper48" (Carousel_002 by
+  // @gurvinder-singh02), which is Swiper's cards effect with loop on and
+  // 40px between slides. Swiper's own card maths is kept -- each card a
+  // further 8% out, 2deg round and 100px back than the one in front of it,
+  // and the card being swiped arcing up and away as it goes -- but driven
+  // here from the finger directly, since this site carries no Swiper.
+  const DECK = {
+    perSlideOffset: 8,    // % of a card's width, per card of distance
+    perSlideRotate: 2,    // deg, per card of distance
+    spaceBetween: 40,     // px of drag beyond a card's width to move one card
+    speed: 300            // ms to settle -- Swiper's default
+  };
+
+  function stripCardWidth() {
+    const w = window.innerWidth;
+    if (w >= 1200) return 360;
+    if (w >= 1000) return 330;
+    if (w >= 820) return 318;
+    return 300;
+  }
+
+  function setupProjectStrip() {
+    const grid = document.getElementById('projects-grid');
+    if (!grid) return;
+    const cards = Array.prototype.slice.call(grid.querySelectorAll('.proj'));
+    if (!cards.length) return;
+
+    let stripped = false;
+    let swiping = false; // phone carousel: full-size cards, dragged sideways
+    let active = 0;     // the widened card; hover moves it
+    let expanded = -1;  // the opened card; only a click sets this
+    let heights = { compact: 0, full: 0 };
+    // Click carries no pointerType, so the last pointerdown stands in for it.
+    let lastPointer = 'mouse';
+
+    function paint() {
+      // Only the strip has a widened card. On the carousel every card is
+      // already full size, so none of them is singled out.
+      cards.forEach((c, i) => {
+        c.classList.toggle('is-active', !swiping && (i === active || i === expanded));
+      });
+    }
+
+    function applyHeight() {
+      if (!stripped && !swiping) return;
+      const box = expanded >= 0 ? heights.each[expanded] : heights.compact;
+      // The opened card's own height, so the row grows by exactly what that
+      // card needs.
+      grid.style.setProperty('--strip-h-full',
+        Math.ceil(heights.each[Math.max(0, expanded)]) + 'px');
+      grid.style.setProperty('--strip-h-box', Math.ceil(box) + 'px');
+    }
+
+    function setActive(i) {
+      // Hover is ignored while a card is open: the open card stays open
+      // until it is closed or another one is clicked.
+      if (expanded >= 0 || active === i) return;
+      active = i;
+      paint();
+      scrollActiveIntoView(true);
+    }
+
+    function setExpanded(i) {
+      expanded = i;
+      if (i >= 0) active = i;
+      cards.forEach((c, n) => {
+        const open = n === i;
+        c.classList.toggle('is-expanded', open);
+        c.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      // Equal rows are right for a grid of compact cards, but an opened card
+      // must be free to grow without dragging every other row with it.
+      grid.classList.toggle('has-expanded', i >= 0);
+      applyHeight();
+      paint();
+      if (swiping) paintDeck();
+      scrollActiveIntoView(true);
+
+      // The measured height is taken in grid flow, which can be a line of
+      // text out from what the card ends up wrapping to in the row. Once the
+      // card has settled, take its real height and correct the row.
+      clearTimeout(fitTimer);
+      if (i >= 0) fitTimer = setTimeout(() => refit(i), 380);
+
+      // An opened card is several hundred pixels taller than a closed one.
+      // Measured once the row has finished growing, not during.
+      refreshScroll(560);
+    }
+
+    let fitTimer = 0;
+    function refit(i) {
+      if ((!stripped && !swiping) || expanded !== i) return;
+      const card = cards[i];
+      const shot = card.querySelector('.proj-media');
+      const body = card.querySelector('.proj-body');
+      if (!shot || !body) return;
+      const need = Math.ceil(
+        shot.getBoundingClientRect().height +
+        body.getBoundingClientRect().height + 2   // the card's own borders
+      );
+      if (Math.abs(need - heights.each[i]) < 2) return;
+      heights.each[i] = need;
+      applyHeight();
+    }
+
+    // Both card heights, measured in grid flow so they are the real wrapped
+    // heights rather than the three-column ones.
+    function measureHeights(cardW, openW) {
+      const wasExpanded = cards.map(c => c.classList.contains('is-expanded'));
+      grid.style.justifyContent = 'center';
+
+      const at = (w, expandedState) => {
+        grid.style.gridTemplateColumns = 'repeat(auto-fit, ' + w + 'px)';
+        // Equal rows, and grid's default stretch, would both hand a card the
+        // height of the tallest card beside it — the opposite of what the
+        // per-card pass is measuring.
+        grid.style.gridAutoRows = expandedState ? 'auto' : '';
+        grid.style.alignItems = expandedState ? 'start' : '';
+        cards.forEach(c => c.classList.toggle('is-expanded', expandedState));
+        // eslint-disable-next-line no-unused-expressions
+        grid.offsetHeight;
+        return cards.map(c => c.offsetHeight);
+      };
+
+      const compact = Math.max.apply(null, at(cardW, false));
+      // Per card, not the tallest of them: an opened card sizes to its own
+      // content, so a short one is not left with a stretch of empty panel.
+      const each = at(openW, true).map(h => Math.max(h, compact));
+
+      cards.forEach((c, i) => c.classList.toggle('is-expanded', wasExpanded[i]));
+      grid.style.removeProperty('grid-template-columns');
+      grid.style.removeProperty('grid-auto-rows');
+      grid.style.removeProperty('align-items');
+      grid.style.removeProperty('justify-content');
+
+      return { compact: compact, each: each };
+    }
+
+    // The deck has no row to scroll: bringing a card forward is turning the
+    // deck to it.
+    function scrollActiveIntoView(smooth) {
+      if (!swiping) return;
+      deckTo(nearestTurn(expanded >= 0 ? expanded : active), smooth);
+    }
+
+    function teardown() {
+      grid.classList.remove('is-strip', 'is-swipe');
+      ['--strip-h', '--strip-h-full', '--strip-h-box', '--strip-card-w',
+       '--strip-slice', '--strip-media-h']
+        .forEach(p => grid.style.removeProperty(p));
+      cards.forEach(c => {
+        c.classList.remove('is-active');
+        c.style.transform = '';
+        c.style.zIndex = '';
+        c.style.opacity = '';
+        c.style.removeProperty('--deck-shade');
+      });
+      cancelAnimationFrame(deckRaf);
+      deckRaf = 0;
+      stripped = false;
+      swiping = false;
+      hideHints();
+    }
+
+    function build() {
+      teardown();
+
+      const n = cards.length;
+      const gaps = STRIP_GAP * (n - 1);
+      const avail = grid.clientWidth;
+
+      const cardW = stripCardWidth();
+      const slice = Math.floor((avail - cardW - gaps) / (n - 1));
+
+      // Not enough width for a row of slices plus a readable open card: the
+      // phone carousel takes over instead of squeezing anything.
+      if (slice < STRIP_SLICE_MIN) return buildDeck(avail);
+
+      heights = measureHeights(cardW, cardW);
+      if (!heights.compact) return;
+
+      grid.style.setProperty('--strip-card-w', cardW + 'px');
+      grid.style.setProperty('--strip-slice',
+        Math.min(STRIP_SLICE_MAX, slice) + 'px');
+      grid.style.setProperty('--strip-h', Math.ceil(heights.compact) + 'px');
+      // The shot's own 16/9 height at the widened width. A collapsed card
+      // hands the whole card over to the shot instead, so no slice is left
+      // as a bare panel.
+      grid.style.setProperty('--strip-media-h',
+        Math.round((cardW - 2) * 9 / 16) + 'px');
+
+      grid.classList.add('is-strip');
+      stripped = true;
+      applyHeight();
+      paint();
+      showHints('strip');
+      refreshScroll();   // the section just lost most of its height
+    }
+
+    // Phone deck: every card at full size, dealt into one stack.
+    let deckW = 0;
+    let pos = 0;        // the card on top, as a continuous index -- unbounded,
+                        // so the deck loops without ever jumping
+    let heading = 0;    // +1 turning forward, -1 back, 0 at rest
+
+    function buildDeck(avail) {
+      // Narrower than the column, so the cards fanned out behind the top one
+      // have somewhere to show.
+      deckW = Math.max(200, Math.min(320, avail - 48));
+
+      heights = measureHeights(deckW, deckW);
+      if (!heights.compact) return;
+
+      grid.style.setProperty('--strip-card-w', deckW + 'px');
+      grid.style.setProperty('--strip-h', Math.ceil(heights.compact) + 'px');
+
+      grid.classList.add('is-swipe');
+      swiping = true;
+      pos = active;
+      heading = 0;
+      applyHeight();
+      paint();
+      paintDeck();
+      showHints('swipe');
+      refreshScroll();   // the section just lost most of its height
+    }
+
+    /* ---- the hints under the row ---------------------------------------
+       Neither arrangement says what it wants done to it, so the gestures
+       are spelled out: both of them on a phone, where a card has to be
+       dragged to as well as opened, and the one that applies anywhere
+       else. Each hint also does what it says when pressed, so no label
+       points at something you cannot simply press instead. */
+    let hints = null;
+    let hintOpen = null;
+    let hintNext = null;
+
+    function buildHints() {
+      hints = el('div', { class: 'proj-hints' });
+
+      hintOpen = el('button', { type: 'button', class: 'proj-hint' },
+        '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+        '<circle cx="8" cy="8" r="2.4"/><path d="M3.6 3.6a6.2 6.2 0 0 0 0 8.8M12.4 3.6a6.2 6.2 0 0 1 0 8.8"/>' +
+        '</svg><span></span>');
+
+      hintNext = el('button', { type: 'button', class: 'proj-hint' },
+        '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+        '<path d="M1.6 8h12.8M4.6 4.8 1.4 8l3.2 3.2M11.4 4.8 14.6 8l-3.2 3.2"/>' +
+        '</svg><span>Swipe for more projects</span>');
+
+      hintOpen.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setExpanded(expanded >= 0 ? -1 : active);
+      });
+
+      hintNext.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (expanded >= 0) setExpanded(-1);
+        if (swiping) { deckTo(Math.round(pos) + 1, true); return; }
+        active = (active + 1) % cards.length;
+        paint();
+      });
+
+      hints.appendChild(hintOpen);
+      hints.appendChild(hintNext);
+      grid.parentNode.insertBefore(hints, grid.nextSibling);
+    }
+
+    // A phone is tapped and a laptop is clicked, and the row only has to be
+    // swiped where the cards do not all fit at once.
+    function showHints(mode) {
+      if (!hints) buildHints();
+      hints.hidden = false;
+      hintOpen.querySelector('span').textContent =
+        mode === 'swipe' ? 'Tap a card for details' : 'Click a card for details';
+      hintNext.hidden = mode !== 'swipe';
+    }
+
+    function hideHints() {
+      if (hints) hints.hidden = true;
+    }
+
+    // How far card i is from the top of the deck, the way Swiper counts a
+    // slide's progress: 0 on top, negative for the cards still to come,
+    // positive for the ones already swiped past. Wrapped, since it loops.
+    function deckProgress(i) {
+      const n = cards.length;
+      let d = ((pos - i) % n + n) % n;
+      if (d > n / 2) d -= n;
+      return d;
+    }
+
+    // Swiper's cards effect, value for value, with its translate measured in
+    // the card's own width and height.
+    function paintDeck() {
+      if (!swiping) return;
+      const n = cards.length;
+      cards.forEach((card, i) => {
+        const raw = deckProgress(i);
+        const p = Math.max(-4, Math.min(4, raw));
+        const a = Math.abs(p);
+        let rotate = -DECK.perSlideRotate * p;
+        let scale = 1;
+        let tXAdd = DECK.perSlideOffset - a * 0.75;
+        let tY = 0;
+
+        // The card leaving the top, whichever way it is going, lifts and
+        // arcs out and shrinks as it passes the halfway point.
+        const leaving = a < 1 && ((heading > 0 && p > 0) || (heading < 0 && p < 0));
+        if (leaving) {
+          const sub = Math.pow(1 - Math.abs((a - 0.5) / 0.5), 0.5);
+          rotate += -28 * p * sub;
+          scale += -0.5 * sub;
+          tXAdd += 96 * sub;
+          tY = -25 * sub * a;
+        }
+
+        const tX = p < 0 ? tXAdd * a : p > 0 ? -tXAdd * a : 0;
+        const s = p < 0 ? 1 + (1 - scale) * p : 1 - (1 - scale) * p;
+
+        card.style.transform =
+          'translate3d(' + tX.toFixed(3) + '%,' + tY.toFixed(3) + '%,' +
+          (-100 * a).toFixed(1) + 'px) rotateZ(' + rotate.toFixed(3) +
+          'deg) scale(' + s.toFixed(4) + ')';
+        card.style.zIndex = String(n - Math.abs(Math.round(p)));
+        // Swiper's slide shadow: the further back, the darker.
+        card.style.setProperty('--deck-shade', clamp01((a - 0.5) / 0.5).toFixed(3));
+        // A looping deck moves its back card from one side to the other as
+        // it wraps. It is faded out at the very back so that is never seen.
+        // Left alone otherwise, so the section's own reveal still fades it in.
+        const fade = clamp01(n / 2 - Math.abs(raw) + 0.5);
+        card.style.opacity = fade < 1 ? fade.toFixed(3) : '';
+      });
+    }
+
+    // The turn that brings card i to the top by the shortest way round.
+    function nearestTurn(i) {
+      return pos - deckProgress(i);
+    }
+
+    let deckRaf = 0;
+    function deckTo(target, smooth) {
+      cancelAnimationFrame(deckRaf);
+      deckRaf = 0;
+      const from = pos;
+      const n = cards.length;
+      const settleAt = () => {
+        pos = target;
+        heading = 0;
+        active = ((Math.round(target) % n) + n) % n;
+        paint();
+        paintDeck();
+      };
+      if (!smooth || reduceMotion || Math.abs(target - from) < 0.001) { settleAt(); return; }
+      heading = target > from ? 1 : -1;
+      const t0 = performance.now();
+      const step = (now) => {
+        const k = Math.min(1, (now - t0) / DECK.speed);
+        // Eased out, the way a released card slows into place.
+        pos = from + (target - from) * (1 - Math.pow(1 - k, 3));
+        paintDeck();
+        if (k < 1) deckRaf = requestAnimationFrame(step);
+        else { deckRaf = 0; settleAt(); }
+      };
+      deckRaf = requestAnimationFrame(step);
+    }
+
+    // Dragging: the deck follows the finger one to one -- a card's width
+    // plus the reference's 40px of travel turns it by one card -- and a
+    // release settles on the nearest card, or on the next one for a quick
+    // flick, as Swiper does.
+    const drag = { id: -1, x: 0, y: 0, from: 0, t: 0, lastX: 0, on: false };
+
+    grid.addEventListener('pointerdown', (e) => {
+      if (!swiping || e.button > 0 || e.target.closest('a')) return;
+      cancelAnimationFrame(deckRaf);
+      deckRaf = 0;
+      drag.id = e.pointerId;
+      drag.x = drag.lastX = e.clientX;
+      drag.y = e.clientY;
+      drag.from = pos;
+      drag.t = performance.now();
+      drag.on = false;
+    });
+
+    grid.addEventListener('pointermove', (e) => {
+      if (!swiping || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x;
+      if (!drag.on) {
+        // Sideways only; a vertical move is the page being scrolled.
+        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(e.clientY - drag.y)) return;
+        drag.on = true;
+        if (expanded >= 0) {
+          setExpanded(-1);
+          // Closing asks for the deck to be turned to the closed card, and
+          // that turn would fight the finger for the rest of the swipe.
+          cancelAnimationFrame(deckRaf);
+          deckRaf = 0;
+          pos = drag.from;
+        }
+        try { grid.setPointerCapture(e.pointerId); } catch (err) { /* already gone */ }
+        grid.classList.add('is-dragging');
+      }
+      const move = e.clientX - drag.lastX;
+      if (move) heading = move < 0 ? 1 : -1;
+      drag.lastX = e.clientX;
+      pos = drag.from - dx / (deckW + DECK.spaceBetween);
+      paintDeck();
+    });
+
+    function endDrag(e) {
+      if (e.pointerId !== drag.id) return;
+      drag.id = -1;
+      grid.classList.remove('is-dragging');
+      if (!drag.on) return;
+      drag.on = false;
+      const moved = pos - drag.from;
+      const quick = performance.now() - drag.t < 300;
+      let target = Math.round(pos);
+      if (quick && Math.abs(moved) > 0.04) target = Math.round(drag.from) + (moved > 0 ? 1 : -1);
+      deckTo(target, true);
+    }
+    grid.addEventListener('pointerup', endDrag);
+    grid.addEventListener('pointercancel', endDrag);
+
+    // Arrow keys turn the deck while focus is inside it.
+    grid.addEventListener('keydown', (e) => {
+      if (!swiping || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+      e.preventDefault();
+      if (expanded >= 0) setExpanded(-1);
+      const next = Math.round(pos) + (e.key === 'ArrowRight' ? 1 : -1);
+      deckTo(next, true);
+      const card = cards[((next % cards.length) + cards.length) % cards.length];
+      if (card) card.focus({ preventScroll: true });
+    });
+
+    // A swipe that ends on a card still fires a click in some browsers, and
+    // opening a card the visitor was only dragging past would be wrong.
+    let dragged = false;
+    let downX = 0, downY = 0;
+
+    grid.addEventListener('pointerdown', (e) => {
+      lastPointer = e.pointerType || 'mouse';
+      dragged = false;
+      downX = e.clientX;
+      downY = e.clientY;
+    }, true);
+
+    grid.addEventListener('pointermove', (e) => {
+      if (!e.buttons && e.pointerType !== 'touch') return;
+      if (Math.abs(e.clientX - downX) > 10 ||
+          Math.abs(e.clientY - downY) > 10) dragged = true;
+    }, true);
+
+    cards.forEach((card, i) => {
+      // Hover widens a card. No pointerleave reset: the last card pointed at
+      // stays open, exactly as in the reference.
+      card.addEventListener('pointerenter', (e) => {
+        // The deck turns only when it is swiped: a mouse passing over a card
+        // fanned out behind the top one used to turn the deck to it,
+        // fighting the drag it was in the middle of.
+        if (e.pointerType === 'touch' || swiping) return;
+        setActive(i);
+      });
+
+      // Keyboard equivalent, so tabbing does not leave the focused card as a
+      // 46px slice. The card itself carries the tabindex: nothing inside a
+      // closed one is focusable, since the GitHub link is display:none until
+      // the card opens.
+      card.addEventListener('focusin', () => {
+        // A press focuses the card it lands on; on the deck that press is
+        // the start of a swipe or a tap, which decide for themselves.
+        if (swiping && drag.id !== -1) return;
+        setActive(i);
+      });
+
+      // Enter and Space open and close it, the way the click does. Only when
+      // the card itself holds focus — the link inside keeps its own keys.
+      card.addEventListener('keydown', (e) => {
+        if (e.target !== card) return;
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+        e.preventDefault();   // Space would otherwise page down
+        setExpanded(expanded === i ? -1 : i);
+      });
+
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('a')) return;   // the GitHub link still wins
+        e.stopPropagation();
+        if (dragged) return;   // this click is the end of a swipe
+        // Touch has no hover to widen a card first, so the tap does that job
+        // and the next one opens it. A slice carries only a sliver of a
+        // screenshot: opening it straight from there would be a blind tap.
+        // On the carousel the cards are already full size, so a tap opens.
+        if (stripped && lastPointer === 'touch' && active !== i) {
+          if (expanded >= 0) setExpanded(-1);
+          setActive(i);
+          return;
+        }
+        // On the deck, a card peeking out from behind is brought to the top
+        // first; only the top card opens.
+        if (swiping && Math.abs(deckProgress(i)) > 0.01) {
+          if (expanded >= 0) setExpanded(-1);
+          deckTo(nearestTurn(i), true);
+          return;
+        }
+        setExpanded(expanded === i ? -1 : i);
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (grid.contains(e.target)) return;
+      if (expanded >= 0) setExpanded(-1);
+    });
+
+    function sync() {
+      if (reduceMotion) { if (stripped || swiping) teardown(); return; }
+      build();
+    }
+
+    sync();
+    window.addEventListener('load', sync);
+
+    let rt = 0;
+    const requeue = () => { clearTimeout(rt); rt = setTimeout(sync, 180); };
+    window.addEventListener('resize', requeue);
+    // Belt and braces: the widths the card size steps at, so crossing one is
+    // caught even where a resize event is missed.
+    [1200, 1000, 820, 680].forEach(w => {
+      const mq = window.matchMedia('(min-width: ' + w + 'px)');
+      if (mq.addEventListener) mq.addEventListener('change', requeue);
+    });
+    window.addEventListener('orientationchange', requeue);
+  }
+
+  /* =====================================================================
+     CONTACT — flame field background
+
+     A bed of big square dots burning up the foot of the section: tongues
+     rising and falling along the width, cells of heat travelling upward
+     through them, and the flame leaning toward the pointer. Reference:
+     Originkit "Predictive Arc" for the way it is drawn; the module itself
+     has the detail on what was kept and what was changed.
+
+     Same treatment as the fluid field: loaded only when the section is
+     near, and skipped under reduced motion or without WebGL.
+     ===================================================================== */
+  function setupFlameBackground() {
+    const section = document.getElementById('contact');
+    if (!section || reduceMotion) return;
+    if (!webglAvailable()) return;
+
+    let started = false;
+    let tries = 0;
+
+    function start() {
+      if (started) return;
+      started = true;
+      import('./flame-bg.js')
+        .then(m => m.createFlameBackground(section))
+        .catch(() => {
+          // A dropped module or CDN fetch should not cost the section its
+          // backdrop for the life of the page.
+          started = false;
+          if (++tries < 3) setTimeout(start, 2000 * tries);
+        });
+    }
+
+    // A screen's warning, so Three.js is fetched and the shader compiled
+    // before the section arrives rather than while it is being looked at.
+    const io = new IntersectionObserver(entries => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      io.disconnect();
+      start();
+    }, { rootMargin: '900px 0px' });
+
+    io.observe(section);
+  }
+
+  /* =====================================================================
+     CERTIFICATIONS — pixel blast background
+
+     React Bits "PixelBlast", rebuilt in pixel-blast-bg.js, with the
+     component's example settings and the page's violet. Background only:
+     the canvas sits behind the card stack and never takes a click from it.
+
+     The section is several screens tall — the card stack is scrolled
+     through — so rather than one canvas the height of all of it, the
+     canvas is a screen tall and pinned, riding down the section as it is
+     scrolled. The pattern is the same size wherever the visitor is, and
+     the GPU draws one screen of it, not four.
+     ===================================================================== */
+  const PIXEL_BLAST = {
+    variant: 'circle',
+    pixelSize: 6,
+    color: '#6A3BE8',       // the component's #B497CF, in this page's violet
+    patternScale: 3,
+    patternDensity: 1.2,
+    pixelSizeJitter: 0.5,
+    enableRipples: true,
+    rippleSpeed: 0.4,
+    rippleThickness: 0.12,
+    rippleIntensityScale: 1.5,
+    liquid: true,
+    liquidStrength: 0.12,
+    liquidRadius: 1.2,
+    liquidWobbleSpeed: 5,
+    speed: 0.6,
+    edgeFade: 0.25
+  };
+
+  // The mobile layout's widest screen — where the nav turns into a menu.
+  const MOBILE_MAX = 860;
+
+  function setupPixelBlast() {
+    const section = document.getElementById('certifications');
+    if (!section || reduceMotion) return;
+    if (!webglAvailable()) return;
+
+    const layer = el('div', { class: 'certs-bg', 'aria-hidden': 'true' });
+    const pin = el('div', { class: 'certs-bg-pin' });
+    layer.appendChild(pin);
+    section.insertBefore(layer, section.firstChild);
+
+    let started = false;
+    let tries = 0;
+
+    function start() {
+      if (started) return;
+      started = true;
+      import('./pixel-blast-bg.js')
+        .then(m => m.createPixelBlast(pin, section, PIXEL_BLAST))
+        .catch(() => {
+          // A dropped module or CDN fetch should not cost the section its
+          // backdrop for the life of the page. No WebGL 2 fails the same
+          // way, and the retries simply fail again, quietly.
+          started = false;
+          if (++tries < 3) setTimeout(start, 2000 * tries);
+        });
+    }
+
+    // A screen's warning, so Three.js and the shader are ready before the
+    // section arrives.
+    const io = new IntersectionObserver(entries => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      io.disconnect();
+      start();
+    }, { rootMargin: '900px 0px' });
+
+    // Not on the mobile layout: there the section is its plain black. The
+    // CSS hides the layer below the same width, which also pauses a field
+    // that started on a wider window, since a hidden canvas is never on
+    // screen. It is only ever loaded once the layout is wide enough.
+    const wide = window.matchMedia('(min-width: ' + (MOBILE_MAX + 1) + 'px)');
+    const arm = () => { if (wide.matches) io.observe(section); };
+    arm();
+    if (wide.addEventListener) wide.addEventListener('change', arm);
+  }
+
+  /* =====================================================================
+     CURSOR IMAGE TRAIL
+
+     Decorative only: a pointer-events:none layer behind everything from
+     About through Education + Skills, dropping a logo every so many pixels
+     of cursor travel. Older images shrink and fade; the layer is never
+     built on touch devices or under reduced motion.
+     ===================================================================== */
+  const TRAIL_IMAGES = [
+    'uploads/trail/hackerrank.webp',
+    'uploads/trail/github.webp',
+    'uploads/trail/claude.webp',
+    'uploads/trail/vscode.webp',
+    'uploads/trail/sql.webp',
+    'uploads/trail/chatgpt.webp',
+    'uploads/trail/python.webp'
+  ];
+  const TRAIL_LENGTH = 7;
+  const TRAIL_SPAWN_DISTANCE = 78;   // px of cursor travel between spawns
+  const TRAIL_ROTATION = 17;         // +/- degrees
+  const TRAIL_FADE_MS = 560;
+
+  function setupCursorTrail() {
+    // The zone wraps About plus Education + Skills; the trail stops where it
+    // ends, before Projects.
+    const zone = document.getElementById('trail-zone');
+    if (!zone || reduceMotion) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    const layer = el('div', { class: 'trail-layer', 'aria-hidden': 'true' });
+    zone.insertBefore(layer, zone.firstChild);
+
+    // Warm the cache so the first few spawns are not blank.
+    TRAIL_IMAGES.forEach(src => { const i = new Image(); i.src = src; });
+
+    const items = [];
+    let next = 0;
+    let lastX = null, lastY = null;
+    let pending = null, raf = 0;
+
+    function restyle() {
+      const n = items.length;
+      items.forEach((it, i) => {
+        // i counts from oldest; age 0 is the newest image.
+        const age = (n - 1 - i) / Math.max(1, TRAIL_LENGTH - 1);
+        const scale = 1 - age * 0.34;
+        // Peak 0.72, not 1: these sit behind body copy and should read as
+        // decoration rather than as stickers laid over the text.
+        it.el.style.opacity = (0.72 - age * 0.55).toFixed(3);
+        it.el.style.transform =
+          'translate(-50%,-50%) rotate(' + it.rot.toFixed(1) + 'deg) scale(' + scale.toFixed(3) + ')';
+      });
+    }
+
+    function retire(it) {
+      it.el.style.opacity = '0';
+      it.el.style.transform =
+        'translate(-50%,-50%) rotate(' + it.rot.toFixed(1) + 'deg) scale(0.62)';
+      setTimeout(() => { if (it.el.parentNode) it.el.parentNode.removeChild(it.el); }, TRAIL_FADE_MS);
+    }
+
+    function spawn(x, y) {
+      const img = el('img', {
+        class: 'trail-img',
+        src: TRAIL_IMAGES[next % TRAIL_IMAGES.length],
+        alt: '', role: 'presentation', draggable: 'false', decoding: 'async'
+      });
+      next++;
+
+      const rot = (Math.random() * 2 - 1) * TRAIL_ROTATION;
+      img.style.left = x + 'px';
+      img.style.top = y + 'px';
+      img.style.transform = 'translate(-50%,-50%) rotate(' + rot.toFixed(1) + 'deg) scale(0.8)';
+      layer.appendChild(img);
+
+      const it = { el: img, rot: rot };
+      items.push(it);
+      while (items.length > TRAIL_LENGTH) retire(items.shift());
+
+      // Next frame so the browser has a start value to transition from.
+      requestAnimationFrame(restyle);
+    }
+
+    function flush() {
+      raf = 0;
+      if (!pending) return;
+      const { x, y } = pending;
+      pending = null;
+
+      if (lastX === null) { lastX = x; lastY = y; spawn(x, y); return; }
+      const dx = x - lastX, dy = y - lastY;
+      if (Math.sqrt(dx * dx + dy * dy) < TRAIL_SPAWN_DISTANCE) return;
+      lastX = x; lastY = y;
+      spawn(x, y);
+    }
+
+    // Coalesced to one spawn check per frame, however fast the pointer moves.
+    zone.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const r = layer.getBoundingClientRect();
+      pending = { x: e.clientX - r.left, y: e.clientY - r.top };
+      if (!raf) raf = requestAnimationFrame(flush);
+    }, { passive: true });
+
+    zone.addEventListener('pointerleave', () => {
+      lastX = lastY = null;
+      pending = null;
+      while (items.length) retire(items.shift());
+    });
   }
 
   /* =====================================================================
      LIGHTBOX — PDF.js for the resume, plain image for certificates
      ===================================================================== */
-  const PDFJS_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
-  const PDFJS_WORKER_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-  const modalRoot = document.getElementById('modal-root');
-
   let pdfLibPromise = null;
-  let pdfDoc = null, pdfDocSrc = null;
-  let pdfToken = 0, pdfRenderedWidth = 0, pdfRO = null, pdfResizeT = 0;
+  let pdfDoc = null, pdfDocSrc = '';
+  let pdfToken = 0, pdfRenderedWidth = 0;
+  let pdfRO = null, pdfResizeT = 0;
 
   function loadPdfJs() {
     if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
@@ -592,7 +2107,7 @@
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
         resolve(window.pdfjsLib);
       };
-      s.onerror = () => reject(new Error('Could not reach the pdf.js CDN — check your connection.'));
+      s.onerror = () => reject(new Error('Could not reach the pdf.js CDN. Check your connection.'));
       document.head.appendChild(s);
     });
     return pdfLibPromise;
@@ -601,7 +2116,7 @@
   function buildModal(title, credential, openHref, openLabel) {
     modalRoot.innerHTML = '';
     const backdrop = el('div', { class: 'modal-backdrop' });
-    const panel = el('div', { class: 'modal-panel' });
+    const panel = el('div', { class: 'modal-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': title });
 
     const head = el('div', { class: 'modal-head' });
     head.appendChild(el('p', { class: 'modal-title' }, esc(title)));
@@ -626,6 +2141,7 @@
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
     modalRoot.appendChild(backdrop);
     document.body.classList.add('modal-lock');
+    close.focus();
     return scroll;
   }
 
@@ -633,15 +2149,14 @@
     host.innerHTML = '';
     const wrap = el('div', { class: 'modal-notice' });
     if (!detail) wrap.appendChild(el('div', { class: 'modal-spinner' }));
-    wrap.appendChild(el('p', { style: "margin:0;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#F5F5F7" }, esc(title)));
-    if (detail) wrap.appendChild(el('p', { style: 'margin:0;max-width:46ch;font-size:13.5px;line-height:1.7;color:#9CA3AF' }, esc(detail)));
+    wrap.appendChild(el('p', { style: "margin:0;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#FFFFFF" }, esc(title)));
+    if (detail) wrap.appendChild(el('p', { style: 'margin:0;max-width:46ch;font-size:13.5px;line-height:1.7;color:#B8B3C8' }, esc(detail)));
     host.appendChild(wrap);
   }
 
   function openImage(title, src, credential) {
     const host = buildModal(title, credential, src, 'Open full image ↗');
-    const img = el('img', { src: src, alt: esc(title) + ' certificate' });
-    host.appendChild(img);
+    host.appendChild(el('img', { src: src, alt: title + ' certificate' }));
   }
 
   function openPdf(title, src) {
@@ -664,6 +2179,8 @@
 
   async function renderPdf(host, src) {
     const avail = host.clientWidth - 36;
+    // Width is measured once the panel has settled; retry on the next frame
+    // rather than rasterising at a mid-animation width.
     if (avail < 80) { requestAnimationFrame(() => renderPdf(host, src)); return; }
 
     const token = ++pdfToken;
@@ -715,36 +2232,26 @@
   /* =====================================================================
      INIT
      ===================================================================== */
-  function reveal() {
-    if (preloader) preloader.classList.add('hidden');
-    document.body.classList.remove('loading-state');
-  }
+  function init() {
+    document.body.classList.add('js');
 
-  function start() {
-    resizeCanvas();
-    setupInteractions();
     renderProjects();
     renderCertificates();
     renderContacts();
-    setupReveals();
-    layoutAboutCards();
-    window.addEventListener('resize', resizeCanvas, { passive: true });
-    window.addEventListener('resize', layoutAboutCards, { passive: true });
+    setupNav();
 
-    preloadDeviceFrames(currentDevice, () => setTimeout(reveal, 200));
-
-    // Safety net: never trap the visitor behind the preloader.
-    setTimeout(reveal, 8000);
-
-    requestAnimationFrame(tick);
-  }
-
-  function init() {
-    // Probe a real frame to choose the format — AVIF where supported, else WebP.
-    const probe = new Image();
-    probe.onload = () => { frameExt = 'avif'; start(); };
-    probe.onerror = () => { frameExt = 'webp'; start(); };
-    probe.src = 'frames/' + currentDevice + '/frame_0001.avif';
+    setupHeroSwap();
+    // Before the scroll triggers are measured, so they measure the split
+    // text rather than the text it replaced.
+    setupTextAnimate();
+    setupFadeLines();
+    setupScroll();
+    setupProjectStrip();
+    setupFluidBackground('fluid-zone');
+    setupFlameBackground();
+    setupPixelBlast();
+    setupCursorTrail();
+    initHero3D();
   }
 
   if (document.readyState === 'loading') {
@@ -752,5 +2259,4 @@
   } else {
     init();
   }
-
 })();
