@@ -688,6 +688,8 @@
     }
     setTimeout(() => refreshScroll(0), 1400);
 
+    setupSectionTransitions(gsap, ScrollTrigger);
+
     // Metric counters.
     document.querySelectorAll('.metric dd').forEach(node => {
       const target = parseFloat(node.getAttribute('data-count'));
@@ -712,6 +714,105 @@
     });
 
     setupSectionSpy();
+  }
+
+  /* =====================================================================
+     PROJECTS ⇄ CERTIFICATIONS — directional page transition
+
+     Each side arrives from the direction the visitor is travelling:
+     scrolling down into Certifications, its content fades up from below;
+     scrolling back up into Projects, its content fades down from above.
+
+     It fires on the crossing rather than being scrubbed to it, so it
+     reads as a page changing rather than as something being dragged, and
+     it plays every time that crossing is made, not only the first.
+
+     Only each section's .wrap moves. The backgrounds behind them — the
+     fluid field behind Projects — stay exactly where they are, and the
+     transform is cleared when the fade lands, so nothing is left sitting
+     on the carousel's 3D or on the strip's measurements.
+     ===================================================================== */
+  const SECTION_FADE = {
+    distance: 80,    // px the content travels in
+    duration: 0.85,  // s
+    rearm: 120       // px back past the boundary before it may play again
+  };
+
+  function setupSectionTransitions(gsap, ScrollTrigger) {
+    const projects = document.getElementById('projects');
+    const certs = document.getElementById('certifications');
+    if (!projects || !certs) return;
+    const pWrap = projects.querySelector(':scope > .wrap');
+    const cWrap = certs.querySelector(':scope > .wrap');
+    if (!pWrap || !cWrap) return;
+
+    function play(node, fromY) {
+      // A quick reversal mid-fade restarts it cleanly rather than stacking
+      // a second tween on top of the first.
+      gsap.killTweensOf(node);
+      gsap.fromTo(node,
+        { y: fromY, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: SECTION_FADE.duration,
+          ease: 'power3.out',
+          clearProps: 'transform,opacity'
+        });
+    }
+
+    // The crossings are read from where the two edges sit on screen, not
+    // from scroll positions. The page moves under a visitor who is not
+    // scrolling at all: a card opening grows the strip above, scroll
+    // anchoring holds what they are looking at in place by shifting the
+    // scroll position, and ScrollTrigger re-measures a beat later. A
+    // boundary held as a scroll position reads every one of those as a
+    // crossing — opening a project card faded the whole Projects section
+    // out and dropped it back in from the top. On screen, nothing crossed,
+    // so nothing plays.
+    const edges = () => ({
+      certsTop: certs.getBoundingClientRect().top,
+      projBottom: projects.getBoundingClientRect().bottom,
+      h: window.innerHeight
+    });
+
+    // Each fade plays once per real crossing and is only re-armed once the
+    // visitor has gone a clear distance back the other way, so a trackpad
+    // resting on the boundary cannot flash the section by re-crossing it a
+    // few pixels at a time.
+    let downArmed = true;
+    let upArmed = true;
+    let last = edges();
+
+    function check() {
+      // Mid-refresh the page is being measured, not looked at.
+      if (ScrollTrigger.isRefreshing) return;
+      const now = edges();
+      const downLine = now.h * 0.85;   // Certifications' top rising past here
+      const upLine = now.h * 0.15;     // Projects' bottom falling past here
+
+      // Down: Projects → Certifications, content rises from below.
+      if (downArmed && last.certsTop > downLine && now.certsTop <= downLine) {
+        downArmed = false;
+        play(cWrap, SECTION_FADE.distance);
+      }
+      // Up: Certifications → Projects, content drops from above.
+      if (upArmed && last.projBottom < upLine && now.projBottom >= upLine) {
+        upArmed = false;
+        play(pWrap, -SECTION_FADE.distance);
+      }
+
+      if (now.certsTop > downLine + SECTION_FADE.rearm) downArmed = true;
+      if (now.projBottom < upLine - SECTION_FADE.rearm) upArmed = true;
+      last = now;
+    }
+
+    // Riding ScrollTrigger's own scroll handling rather than adding a
+    // listener of its own.
+    ScrollTrigger.create({ start: 0, end: 'max', onUpdate: check });
+    // Wherever a re-measure leaves the page is the new starting point, not
+    // a crossing.
+    ScrollTrigger.addEventListener('refresh', () => { last = edges(); });
   }
 
   function setupSectionSpy() {
