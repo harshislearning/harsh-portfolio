@@ -82,12 +82,12 @@
 
     // Certificates preview from their thumbnail image — no PDF is shipped.
     certificates: [
-      { title: 'Agentic AI Certified Foundations Associate', issuer: 'Oracle', thumb: 'uploads/Screenshot 2026-08-14 163015.png', credential: 'https://catalog-education.oracle.com/pls/certview/sharebadge?id=71AB7F72299E53E80A06EE54A74A431D1E0385C1102172112AE5DEE8805EA4E9' },
-      { title: 'Generative AI: Prompt Engineering Basics', issuer: 'IBM · Coursera', thumb: 'uploads/Screenshot 2026-08-14 163318.png', credential: 'https://www.coursera.org/account/accomplishments/verify/AHHNVQ4GE0UA' },
-      { title: 'Python for Data Science, AI & Development', issuer: 'IBM · Coursera', thumb: 'uploads/Screenshot 2026-08-14 164303.png', credential: 'https://www.coursera.org/account/accomplishments/certificate/FJHUVTUREM2S' },
-      { title: 'Data Analytics Job Simulation', issuer: 'Deloitte · Forage', thumb: 'uploads/Screenshot 2026-08-14 165404-96c987ee.png', credential: 'https://forage-uploads-prod.s3.amazonaws.com/completion-certificates/9PBTqmSxAf6zZTseP/io9DzWKe3PTsiS6GG_9PBTqmSxAf6zZTseP_r75CDKr598N7pDSWf_1749637695306_completion_certificate.pdf' },
-      { title: 'GenAI Powered Data Analytics Job Simulation', issuer: 'Tata · Forage', thumb: 'uploads/Screenshot 2026-08-14 165730.png', credential: 'https://www.theforage.com/completion-certificates/ifobHAoMjQs9s6bKS/gMTdCXwDdLYoXZ3wG_ifobHAoMjQs9s6bKS_r75CDKr598N7pDSWf_1780309910416_completion_certificate.pdf' },
-      { title: 'SQL (Advanced)', issuer: 'HackerRank', thumb: 'uploads/Screenshot 2026-08-14 165942.png', credential: 'https://www.hackerrank.com/certificates/iframe/7e0f606b67ff' }
+      { title: 'Agentic AI Certified Foundations Associate', issuer: 'Oracle', thumb: 'uploads/Screenshot 2026-08-14 163015.webp', credential: 'https://catalog-education.oracle.com/pls/certview/sharebadge?id=71AB7F72299E53E80A06EE54A74A431D1E0385C1102172112AE5DEE8805EA4E9' },
+      { title: 'Generative AI: Prompt Engineering Basics', issuer: 'IBM · Coursera', thumb: 'uploads/Screenshot 2026-08-14 163318.webp', credential: 'https://www.coursera.org/account/accomplishments/verify/AHHNVQ4GE0UA' },
+      { title: 'Python for Data Science, AI & Development', issuer: 'IBM · Coursera', thumb: 'uploads/Screenshot 2026-08-14 164303.webp', credential: 'https://www.coursera.org/account/accomplishments/certificate/FJHUVTUREM2S' },
+      { title: 'Data Analytics Job Simulation', issuer: 'Deloitte · Forage', thumb: 'uploads/Screenshot 2026-08-14 165404-96c987ee.webp', credential: 'https://forage-uploads-prod.s3.amazonaws.com/completion-certificates/9PBTqmSxAf6zZTseP/io9DzWKe3PTsiS6GG_9PBTqmSxAf6zZTseP_r75CDKr598N7pDSWf_1749637695306_completion_certificate.pdf' },
+      { title: 'GenAI Powered Data Analytics Job Simulation', issuer: 'Tata · Forage', thumb: 'uploads/Screenshot 2026-08-14 165730.webp', credential: 'https://www.theforage.com/completion-certificates/ifobHAoMjQs9s6bKS/gMTdCXwDdLYoXZ3wG_ifobHAoMjQs9s6bKS_r75CDKr598N7pDSWf_1780309910416_completion_certificate.pdf' },
+      { title: 'SQL (Advanced)', issuer: 'HackerRank', thumb: 'uploads/Screenshot 2026-08-14 165942.webp', credential: 'https://www.hackerrank.com/certificates/iframe/7e0f606b67ff' }
     ]
   };
 
@@ -246,6 +246,18 @@
     // The last card's hold: the stack stays pinned while this scrolls past,
     // which is the stretch the cards above it spend settling.
     list.appendChild(el('div', { class: 'cert-stack-end', 'aria-hidden': 'true' }));
+
+    // Fetched a couple of screens early. Left lazy, a card could slide into
+    // the stack on a quick scroll with its certificate still downloading --
+    // an empty panel where the picture should be.
+    if (window.IntersectionObserver) {
+      const early = new IntersectionObserver(entries => {
+        if (!entries.some(e => e.isIntersecting)) return;
+        early.disconnect();
+        list.querySelectorAll('img[loading="lazy"]').forEach(img => { img.loading = 'eager'; });
+      }, { rootMargin: '1600px 0px' });
+      early.observe(list);
+    }
   }
 
   function setupCertStack(gsap, ScrollTrigger) {
@@ -766,9 +778,12 @@
      on the carousel's 3D or on the strip's measurements.
      ===================================================================== */
   const SECTION_FADE = {
-    distance: 80,    // px the content travels in
-    duration: 0.85,  // s
-    rearm: 120       // px back past the boundary before it may play again
+    distance: 80,       // px the content travels in
+    distanceSmall: 40,  // px, on the mobile layout
+    duration: 0.85,     // s, at an unhurried scroll
+    minDuration: 0.3,   // s, however fast the flick
+    pace: 900,          // px/s of scroll above which the fade quickens
+    rearm: 120          // px back past the boundary before it may play again
   };
 
   function setupSectionTransitions(gsap, ScrollTrigger) {
@@ -779,7 +794,19 @@
     const cWrap = certs.querySelector(':scope > .wrap');
     if (!pWrap || !cWrap) return;
 
-    function play(node, fromY) {
+    // Paced to the scroll that set it off. At a fixed 0.85s a phone flick
+    // carried the section to the middle of the screen while it was still
+    // half transparent and sliding, so the cards looked late -- or, on a
+    // quick flick, missing. A faster scroll gets a faster fade.
+    function durationFor(velocity) {
+      const v = Math.abs(velocity || 0);
+      const d = v > SECTION_FADE.pace ? SECTION_FADE.duration * SECTION_FADE.pace / v : SECTION_FADE.duration;
+      return Math.max(SECTION_FADE.minDuration, d);
+    }
+
+    function play(node, direction, velocity) {
+      const small = window.innerWidth <= 860;
+      const fromY = direction * (small ? SECTION_FADE.distanceSmall : SECTION_FADE.distance);
       // A quick reversal mid-fade restarts it cleanly rather than stacking
       // a second tween on top of the first.
       gsap.killTweensOf(node);
@@ -788,7 +815,7 @@
         {
           y: 0,
           opacity: 1,
-          duration: SECTION_FADE.duration,
+          duration: durationFor(velocity),
           ease: 'power3.out',
           clearProps: 'transform,opacity'
         });
@@ -803,10 +830,13 @@
     // crossing — opening a project card faded the whole Projects section
     // out and dropped it back in from the top. On screen, nothing crossed,
     // so nothing plays.
+    // The layout viewport's height, not innerHeight: on a phone innerHeight
+    // grows and shrinks as the address bar slides away mid-scroll, which
+    // moved the lines under a section that had not moved at all.
     const edges = () => ({
       certsTop: certs.getBoundingClientRect().top,
       projBottom: projects.getBoundingClientRect().bottom,
-      h: window.innerHeight
+      h: document.documentElement.clientHeight || window.innerHeight
     });
 
     // Each fade plays once per real crossing and is only re-armed once the
@@ -817,22 +847,26 @@
     let upArmed = true;
     let last = edges();
 
-    function check() {
+    function check(self) {
       // Mid-refresh the page is being measured, not looked at.
       if (ScrollTrigger.isRefreshing) return;
       const now = edges();
-      const downLine = now.h * 0.85;   // Certifications' top rising past here
-      const upLine = now.h * 0.15;     // Projects' bottom falling past here
+      const velocity = self && self.getVelocity ? self.getVelocity() : 0;
+      // Played as the incoming edge first comes on screen, so the fade is
+      // arriving with the section rather than catching up with it. It used
+      // to wait until the edge was 15% of the way in.
+      const downLine = now.h;   // Certifications' top rising onto the screen
+      const upLine = 0;         // Projects' bottom coming down onto it
 
       // Down: Projects → Certifications, content rises from below.
       if (downArmed && last.certsTop > downLine && now.certsTop <= downLine) {
         downArmed = false;
-        play(cWrap, SECTION_FADE.distance);
+        play(cWrap, 1, velocity);
       }
       // Up: Certifications → Projects, content drops from above.
       if (upArmed && last.projBottom < upLine && now.projBottom >= upLine) {
         upArmed = false;
-        play(pWrap, -SECTION_FADE.distance);
+        play(pWrap, -1, velocity);
       }
 
       if (now.certsTop > downLine + SECTION_FADE.rearm) downArmed = true;
