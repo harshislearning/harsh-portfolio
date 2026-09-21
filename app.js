@@ -400,6 +400,12 @@
     }
 
     document.addEventListener('click', (e) => {
+      // A tap anywhere outside the bar closes the open menu. It used to stay
+      // open over the page until the button was found and pressed again.
+      if (links && links.classList.contains('is-open') && !e.target.closest('.nav')) {
+        setMenu(false);
+      }
+
       const resume = e.target.closest('[data-action="resume"]');
       if (resume) {
         e.preventDefault();
@@ -629,6 +635,21 @@
     const gsap = window.gsap;
     const ScrollTrigger = window.ScrollTrigger;
     gsap.registerPlugin(ScrollTrigger);
+
+    // A re-measure takes the pinned hero out of the page and puts it back,
+    // and an element moved in the page loses focus. Anything focused in the
+    // hero -- the resume button a closed dialog has just handed focus back
+    // to, say -- was dropped to the top of the page on every refresh.
+    let focusKeep = null;
+    ScrollTrigger.addEventListener('refreshInit', () => { focusKeep = document.activeElement; });
+    ScrollTrigger.addEventListener('refresh', () => {
+      const keep = focusKeep;
+      focusKeep = null;
+      if (keep && keep !== document.body && document.contains(keep) &&
+          (document.activeElement === document.body || !document.activeElement)) {
+        keep.focus({ preventScroll: true });
+      }
+    });
 
     // A phone's address bar sliding away is a viewport resize, and
     // recomputing a pin in the middle of the scroll that caused it is how
@@ -2113,7 +2134,11 @@
     return pdfLibPromise;
   }
 
+  // Where focus was when a modal opened, so closing it can put it back.
+  let modalOpener = null;
+
   function buildModal(title, credential, openHref, openLabel) {
+    if (!modalRoot.firstChild) modalOpener = document.activeElement;
     modalRoot.innerHTML = '';
     const backdrop = el('div', { class: 'modal-backdrop' });
     const panel = el('div', { class: 'modal-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': title });
@@ -2139,6 +2164,17 @@
     panel.appendChild(body);
     backdrop.appendChild(panel);
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+    // Tab stays inside the dialog. It is aria-modal, but a keyboard could
+    // still walk out of it into the page hidden behind.
+    backdrop.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const stops = Array.prototype.slice.call(
+        panel.querySelectorAll('a[href], button:not([disabled])'));
+      if (!stops.length) return;
+      const first = stops[0], last = stops[stops.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
     modalRoot.appendChild(backdrop);
     document.body.classList.add('modal-lock');
     close.focus();
@@ -2181,6 +2217,9 @@
     const avail = host.clientWidth - 36;
     // Width is measured once the panel has settled; retry on the next frame
     // rather than rasterising at a mid-animation width.
+    // Unless the dialog has closed in the meantime: a detached host never
+    // gets a width, and this retried every frame for the life of the page.
+    if (!host.isConnected) return;
     if (avail < 80) { requestAnimationFrame(() => renderPdf(host, src)); return; }
 
     const token = ++pdfToken;
@@ -2227,6 +2266,13 @@
     clearTimeout(pdfResizeT);
     modalRoot.innerHTML = '';
     document.body.classList.remove('modal-lock');
+    // Back to whatever opened it. It used to drop to the top of the page,
+    // and a keyboard had to find its way back from there.
+    const back = modalOpener;
+    modalOpener = null;
+    if (back && back.focus && document.contains(back) && back !== document.body) {
+      back.focus({ preventScroll: true });
+    }
   }
 
   /* =====================================================================
