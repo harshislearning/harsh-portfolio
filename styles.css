@@ -979,86 +979,70 @@ a { color: inherit; text-decoration: none; }
 
 /* ------------------------- Certifications ------------------------------- */
 
-/* Certificates: a vertical list of rows that spring open to reveal the
-   certificate itself. Heights are driven from JS (see the spring in app.js),
-   so no height transition is declared here. */
-.cert-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* Certificates: a stack of cards (Skiper UI "Skiper16"). Each card sits in
+   a sticky slot, so the cards pin 20px apart as the section scrolls and
+   each one slides up over the last; JS shrinks the pinned ones. */
+.cert-stack {
+  --stack-top: clamp(84px, 13vh, 132px);
+  position: relative;
 }
 
-.cert-row {
+/* Every slot pins at the same line; the 20px step between cards is on the
+   card, as in the component, so the whole stack lets go together. */
+.cert-slot {
+  position: sticky;
+  top: var(--stack-top);
+  margin-bottom: 8vh;
+}
+
+.cert-stack-end { height: 26vh; }
+
+.cert-card {
   position: relative;
+  top: calc(var(--i, 0) * 20px);
+  /* Sized to the screen as well as the column, so the last card still fits
+     below the five pinned above it on a short laptop. */
+  width: min(580px, 100%, calc((100vh - var(--stack-top) - 250px) * 1.42));
+  margin: 0 auto;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--r-panel);
+  border-radius: 28px;
   background: var(--bg-elev);
-  transition: opacity 260ms var(--ease), border-color 260ms var(--ease);
+  box-shadow: 0 -14px 40px rgba(4, 3, 8, 0.55);
+  transform-origin: top center;
+  will-change: transform;
 }
-.cert-row.is-open { border-color: var(--accent-line); }
-/* Non-hovered rows recede while one is open. */
-.cert-row.is-dim { opacity: 0.38; }
+@supports (height: 100svh) {
+  .cert-card { width: min(580px, 100%, calc((100svh - var(--stack-top) - 250px) * 1.42)); }
+}
 
 /* The certificate image. contain, not cover: these are documents, and
    cropping them cuts off the part that matters. */
-.cert-shot {
-  position: absolute;
-  inset: 0;
+.cert-open {
+  display: block;
   width: 100%;
-  height: 100%;
+  padding: 0;
+  border: 0;
+  background: #0B0910;
+  cursor: zoom-in;
+}
+.cert-open:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; border-radius: 26px 26px 0 0; }
+
+.cert-shot {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.42;
   object-fit: contain;
   object-position: center;
-  opacity: 0;
-  transform: scale(1.06);
-  background: #0B0910;
-  pointer-events: none;
-}
-.cert-row.is-open .cert-shot { pointer-events: auto; cursor: zoom-in; }
-
-/* Keeps the header and the link legible once the certificate is behind
-   them: heavy at the top where the title and issuer sit, light through the
-   middle so the certificate reads, heavy again at the bottom under the
-   link chip. */
-.cert-scrim {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(to bottom,
-      rgba(8, 7, 12, 0.96) 0,
-      rgba(8, 7, 12, 0.92) 58px,
-      rgba(8, 7, 12, 0.62) 104px,
-      rgba(8, 7, 12, 0.34) 45%,
-      rgba(8, 7, 12, 0.72) 82%,
-      rgba(8, 7, 12, 0.93) 100%);
 }
 
 .cert-bar {
-  position: relative;
-  z-index: 2;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-right: clamp(16px, 2vw, 22px);
+  padding: 14px clamp(16px, 2vw, 22px);
+  border-top: 1px solid var(--line);
 }
-
-.cert-head {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  min-height: 68px;
-  padding: 11px 0 11px clamp(16px, 2vw, 22px);
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.cert-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; border-radius: 14px; }
 
 .cert-meta { flex: 1; min-width: 0; }
 
@@ -1074,8 +1058,6 @@ a { color: inherit; text-decoration: none; }
 
 .cert-link {
   flex: 0 0 auto;
-  position: relative;
-  z-index: 3;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -1099,65 +1081,11 @@ a { color: inherit; text-decoration: none; }
   background: var(--accent-soft);
 }
 
-/* Open state. The bar becomes an overlay filling the row, so the title and
-   issuer stay pinned top-left and the link sits in the bottom-right corner
-   of the revealed card. */
-.cert-row.is-open .cert-bar {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 13px clamp(16px, 2vw, 22px);
-}
-.cert-row.is-open .cert-head {
-  flex: 0 0 auto;
-  width: 100%;
-  min-height: 0;
-  padding: 0;
-}
-
-/* Text sits over a photographic certificate, so it gets a shadow on top of
-   the scrim rather than relying on the scrim alone. */
-.cert-row.is-open .cert-title {
-  text-shadow: 0 1px 12px rgba(4, 3, 8, 0.95), 0 1px 3px rgba(4, 3, 8, 0.9);
-}
-.cert-row.is-open .cert-issuer {
-  color: #CFCADF;
-  text-shadow: 0 1px 10px rgba(4, 3, 8, 0.95), 0 1px 3px rgba(4, 3, 8, 0.9);
-}
-
-.cert-row.is-open .cert-link {
-  align-self: flex-end;
-  margin-top: auto;
-  background: rgba(10, 9, 15, 0.92);
-  border-color: var(--accent-line);
-  color: #DDD3FF;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.cert-row.is-open .cert-link:hover,
-.cert-row.is-open .cert-link:focus-visible {
-  background: var(--accent-deep);
-  border-color: var(--accent-deep);
-  color: #fff;
-}
-
 /* Narrow screens: the link pill leaves too little room beside a long
-   certificate title, so it drops below the text instead of squeezing it
-   into four wrapped lines. Rows are taller here than the 68px desktop
-   collapsed height, which is what the titles need to stay readable. */
+   certificate title, so it drops below the text instead of squeezing it. */
 @media (max-width: 560px) {
-  .cert-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 13px 16px;
-  }
-  .cert-head { width: 100%; min-height: 0; padding: 0; }
+  .cert-card { border-radius: 22px; }
+  .cert-bar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 13px 16px; }
   .cert-link { padding: 7px 13px; font-size: 12.5px; }
 }
 

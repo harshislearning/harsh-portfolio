@@ -183,213 +183,143 @@
     });
   }
 
-  /* =====================================================================
-     CERTIFICATES — hover-expand rows
-
-     Each row's openness is a spring-driven 0..1 value; height, image scale
-     and the scrim all read from it. Spring constants are integrated
-     directly rather than eased, so the motion settles physically.
-     ===================================================================== */
-  const SPRING = { stiffness: 280, damping: 32, mass: 0.9 };
-  const activeSprings = new Set();
-  let springRaf = 0, springLast = 0;
-
-  function springFrame(now) {
-    const dt = Math.min((now - springLast) / 1000, 0.05);
-    springLast = now;
-
-    // Fixed sub-steps keep the integration stable regardless of frame rate.
-    const h = 1 / 240;
-    const steps = Math.min(24, Math.max(1, Math.round(dt / h)));
-
-    activeSprings.forEach(s => {
-      for (let i = 0; i < steps; i++) {
-        const accel = (-SPRING.stiffness * (s.value - s.target) - SPRING.damping * s.velocity) / SPRING.mass;
-        s.velocity += accel * h;
-        s.value += s.velocity * h;
-      }
-      if (Math.abs(s.value - s.target) < 0.0015 && Math.abs(s.velocity) < 0.0015) {
-        s.value = s.target;
-        s.velocity = 0;
-        activeSprings.delete(s);
-      }
-      s.render(s.value);
-    });
-
-    springRaf = activeSprings.size ? requestAnimationFrame(springFrame) : 0;
-    // A row that has finished opening or closing has changed the page's
-    // height, and everything below it has moved with it.
-    if (!springRaf) refreshScroll(120);
-  }
-
-  function springTo(state, target) {
-    state.target = target;
-    if (reduceMotion) {
-      state.value = target;
-      state.velocity = 0;
-      activeSprings.delete(state);
-      state.render(target);
-      return;
-    }
-    activeSprings.add(state);
-    if (!springRaf) {
-      springLast = performance.now();
-      springRaf = requestAnimationFrame(springFrame);
-    }
-  }
-
   function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+  /* =====================================================================
+     CERTIFICATES — card stack
+
+     Reference: Skiper UI "Skiper16" (Card stack scroll). Each certificate
+     is a card in a sticky slot, so as the section scrolls every card
+     pins a little below the one before it and the next slides up over
+     it. Every pinned card shrinks from its top edge while the rest of the
+     stack arrives — the first to 0.5, each later one 0.1 less far, the
+     last not at all — which is what leaves the stack reading as depth.
+
+     Its values are kept: 20px between pinned cards, origin-top scaling,
+     max(0.5, 1 - (cards after it) * 0.1). The component leans on Lenis
+     to smooth the whole page's scroll; here only the scale is smoothed,
+     so the rest of the page scrolls exactly as it did.
+     ===================================================================== */
+  const CERT_STACK = {
+    offset: 20,     // px between pinned cards — the component's own
+    step: 0.1,      // how much smaller each card ends than the one above
+    floor: 0.5,     // the smallest a card gets
+    smooth: 0.5     // s the scale takes to catch the scroll
+  };
 
   function renderCertificates() {
     const list = document.getElementById('certs-list');
     if (!list) return;
 
-    const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    const rows = [];
-    let activeRow = null;
-
     CONFIG.certificates.forEach((c, i) => {
-      const row = el('article', { class: 'cert-row' });
-      const panelId = 'cert-panel-' + i;
+      const slot = el('div', { class: 'cert-slot' });
+      slot.style.setProperty('--i', i);
+      const card = el('article', { class: 'cert-card' });
 
-      const shot = el('img', {
-        class: 'cert-shot', src: c.thumb, id: panelId,
+      const open = el('button', {
+        class: 'cert-open', type: 'button',
+        'aria-label': 'Preview the ' + c.title + ' certificate'
+      });
+      open.appendChild(el('img', {
+        class: 'cert-shot', src: c.thumb,
         // Attribute, not markup: esc() here would read out as "&amp;".
-        alt: c.title + ' certificate', loading: 'lazy', decoding: 'async'
-      });
-      const scrim = el('div', { class: 'cert-scrim' });
+        alt: '', loading: 'lazy', decoding: 'async'
+      }));
+      open.addEventListener('click', () => openImage(c.title, c.thumb, c.credential));
 
-      const head = el('button', {
-        class: 'cert-head', type: 'button',
-        'aria-expanded': 'false', 'aria-controls': panelId
-      });
+      const bar = el('div', { class: 'cert-bar' });
       const meta = el('div', { class: 'cert-meta' });
       meta.appendChild(el('h3', { class: 'cert-title' }, esc(c.title)));
       meta.appendChild(el('p', { class: 'cert-issuer' }, esc(c.issuer)));
-      head.appendChild(meta);
-
-      const link = el('a', {
+      bar.appendChild(meta);
+      bar.appendChild(el('a', {
         class: 'cert-link', href: c.credential,
         target: '_blank', rel: 'noopener noreferrer'
-      }, 'View Certificate <span aria-hidden="true">&rarr;</span>');
-      // The link lives inside the row but must never toggle it.
-      link.addEventListener('click', e => e.stopPropagation());
+      }, 'View Certificate <span aria-hidden="true">&rarr;</span>'));
 
-      // head and link are siblings in a flex bar: an anchor cannot be nested
-      // inside a button.
-      const bar = el('div', { class: 'cert-bar' });
-      bar.appendChild(head);
-      bar.appendChild(link);
-
-      row.appendChild(shot);
-      row.appendChild(scrim);
-      row.appendChild(bar);
-
-      const state = { value: 0, velocity: 0, target: 0, render: null };
-      const size = { collapsed: 68, expanded: 312 };
-
-      state.render = (p) => {
-        row.style.height = (size.collapsed + (size.expanded - size.collapsed) * p) + 'px';
-        // Lag the reveal behind the height so the image arrives after the row
-        // has started opening (the spec's ~0.12s delay).
-        const r = reduceMotion ? p : clamp01((p - 0.20) / 0.80);
-        shot.style.opacity = r;
-        shot.style.transform = reduceMotion
-          ? 'none'
-          : 'translateX(' + (-8 * (1 - r)).toFixed(2) + 'px) scale(' + (1.06 - 0.06 * r).toFixed(4) + ')';
-        scrim.style.opacity = r;
-      };
-
-      const entry = { row, head, bar, state, size, shot, cert: c };
-      rows.push(entry);
-
-      shot.addEventListener('click', () => {
-        if (state.target > 0.5) openImage(c.title, c.thumb, c.credential);
-      });
-
-      head.addEventListener('click', () => {
-        if (activeRow === entry) collapseAll();
-        else expand(entry);
-      });
-
-      if (hoverCapable) {
-        row.addEventListener('pointerenter', (e) => {
-          if (e.pointerType === 'touch') return;
-          expand(entry);
-        });
-      }
-
-      // Keyboard: focusing the row reveals it, leaving it collapses.
-      head.addEventListener('focus', () => expand(entry));
-      row.addEventListener('focusout', (e) => {
-        if (!row.contains(e.relatedTarget)) {
-          if (activeRow === entry) collapseAll();
-        }
-      });
-
-      list.appendChild(row);
+      card.appendChild(open);
+      card.appendChild(bar);
+      slot.appendChild(card);
+      list.appendChild(slot);
     });
 
+    // The last card's hold: the stack stays pinned while this scrolls past,
+    // which is the stretch the cards above it spend settling.
+    list.appendChild(el('div', { class: 'cert-stack-end', 'aria-hidden': 'true' }));
+  }
+
+  function setupCertStack(gsap, ScrollTrigger) {
+    const stack = document.getElementById('certs-list');
+    if (!stack) return;
+    const slots = Array.prototype.slice.call(stack.querySelectorAll('.cert-slot'));
+    const n = slots.length;
+    if (n < 2 || reduceMotion) return;
+
+    const cards = slots.map(s => s.querySelector('.cert-card'));
+    const targets = slots.map((s, i) => Math.max(CERT_STACK.floor, 1 - (n - i - 1) * CERT_STACK.step));
+    // quickTo takes one property, and "scale" is a shorthand it refuses.
+    const setters = cards.map(card => {
+      const x = gsap.quickTo(card, 'scaleX', { duration: CERT_STACK.smooth, ease: 'power3.out' });
+      const y = gsap.quickTo(card, 'scaleY', { duration: CERT_STACK.smooth, ease: 'power3.out' });
+      return v => { x(v); y(v); };
+    });
+
+    // Worked out from the layout rather than from where the slots are on
+    // screen: a pinned slot's box is wherever it is pinned, so measuring
+    // one mid-stack reads its pin, not its place in the page.
+    let m = null;
     function measure() {
-      const w = window.innerWidth;
-      const target = w >= 1024 ? 312 : w >= 768 ? 286 : 248;
-      rows.forEach(e => {
-        // An open row's bar is an absolute overlay, so its height is the row
-        // height, not the collapsed height. Leave that row's measurement
-        // alone; it is re-measured when it closes.
-        if (!e.row.classList.contains('is-open')) {
-          e.size.collapsed = Math.max(68, e.bar.offsetHeight);
-        }
-        e.size.expanded = Math.max(target, e.size.collapsed + 140);
-        e.state.render(e.state.value);
+      // Every slot the same height, as in the component. The stack lets go
+      // when its end reaches the pinned slots, and slots of different
+      // heights reached it at different moments: the taller ones were
+      // pushed up first and the cards slid into one another as they left.
+      // A card's own height does not depend on its slot's, so it can be read
+      // with the slots' heights left set — clearing them first shifted the
+      // page for a moment on every refresh.
+      let tallest = 0;
+      cards.forEach(c => { tallest = Math.max(tallest, c.offsetHeight); });
+      const px = tallest + 'px';
+      slots.forEach(s => { if (s.style.height !== px) s.style.height = px; });
+
+      const stackTop = absTop(stack);
+      const cs = getComputedStyle(slots[0]);
+      const pin = parseFloat(cs.top);
+      const pitch = tallest + parseFloat(cs.marginBottom);
+      m = {
+        stick: slots.map((s, i) => stackTop + i * pitch - pin),
+        // Everything lets go together, once the end of the stack reaches
+        // the pinned slots.
+        release: stackTop + stack.offsetHeight - pin - pitch
+      };
+    }
+
+    function update(instant) {
+      if (!m) return;
+      const y = window.scrollY || window.pageYOffset || 0;
+      cards.forEach((card, i) => {
+        if (targets[i] === 1) return;
+        const span = Math.max(1, m.release - m.stick[i]);
+        const s = 1 + (targets[i] - 1) * clamp01((y - m.stick[i]) / span);
+        if (instant) gsap.set(card, { scale: s });
+        setters[i](s);
       });
     }
 
-    function expand(entry) {
-      if (activeRow === entry) return;
-      activeRow = entry;
-      rows.forEach(e => {
-        const open = e === entry;
-        e.row.classList.toggle('is-open', open);
-        e.row.classList.toggle('is-dim', !open);
-        e.head.setAttribute('aria-expanded', open ? 'true' : 'false');
-        springTo(e.state, open ? 1 : 0);
-      });
-    }
-
-    function collapseAll() {
-      if (!activeRow) return;
-      activeRow = null;
-      rows.forEach(e => {
-        e.row.classList.remove('is-open', 'is-dim');
-        e.head.setAttribute('aria-expanded', 'false');
-        springTo(e.state, 0);
-      });
-      // Bars are back in flow, so collapsed heights can be trusted again.
-      requestAnimationFrame(measure);
-    }
-
-    if (hoverCapable) {
-      list.addEventListener('pointerleave', (e) => {
-        if (e.pointerType === 'touch') return;
-        // Don't close a row a keyboard user is focused on just because the
-        // mouse happens to be resting elsewhere.
-        if (list.contains(document.activeElement)) return;
-        collapseAll();
-      });
-    }
-
-    // Heights depend on how the head wraps, so re-measure when it can change.
     measure();
+    update(true);
+    ScrollTrigger.create({ start: 0, end: 'max', onUpdate: () => update(false) });
+    ScrollTrigger.addEventListener('refresh', () => { measure(); update(false); });
+    // A card's height follows its title's wrapping, so re-measure when the
+    // stack's width changes.
     if (window.ResizeObserver) {
-      let t = 0;
-      const ro = new ResizeObserver(() => {
+      let t = 0, w = stack.clientWidth;
+      new ResizeObserver(() => {
+        if (stack.clientWidth === w) return;
+        w = stack.clientWidth;
         clearTimeout(t);
-        t = setTimeout(measure, 120);
-      });
-      ro.observe(list);
+        t = setTimeout(() => refreshScroll(0), 120);
+      }).observe(stack);
     }
-    window.addEventListener('load', measure);
   }
 
   function renderContacts() {
@@ -770,6 +700,7 @@
     setTimeout(() => refreshScroll(0), 1400);
 
     setupSectionTransitions(gsap, ScrollTrigger);
+    setupCertStack(gsap, ScrollTrigger);
 
     // Metric counters.
     document.querySelectorAll('.metric dd').forEach(node => {
