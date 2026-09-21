@@ -146,7 +146,7 @@ const OUTPUT = `
 
 export async function createFluidBackground(container, options) {
   const opts = Object.assign({
-    palette: ['#08070C', '#16102B', '#4C2C9E', '#8B5CF6', '#C4B5FD'],
+    palette: ['#050505', '#14062F', '#3A0CA3', '#6A3BE8', '#A37AFF'],
     pixelSize: 16,
     resolution: 0.35,
     mouseForce: 8,

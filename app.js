@@ -927,8 +927,8 @@
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
 
-    const near = new THREE.Color('#E9E2FF');
-    const far = new THREE.Color('#7C5CE6');
+    const near = new THREE.Color('#FFFFFF');
+    const far = new THREE.Color('#6A3BE8');
     const tmp = new THREE.Color();
 
     for (let i = 0; i < count; i++) {
@@ -1117,7 +1117,7 @@
       return {
         // The site's own violet ramp rather than the component's pink
         // default, so it reads as this page's background.
-        palette: ['#08070C', '#140E2B', '#33207A', '#6D42E0', '#A78BFA'],
+        palette: ['#050505', '#14062F', '#3A0CA3', '#6A3BE8', '#A37AFF'],
         pixelSize: small ? 12 : 16,
         resolution: small ? 0.24 : 0.32,
         pressureIterations: small ? 12 : 18,
@@ -2077,8 +2077,8 @@
     host.innerHTML = '';
     const wrap = el('div', { class: 'modal-notice' });
     if (!detail) wrap.appendChild(el('div', { class: 'modal-spinner' }));
-    wrap.appendChild(el('p', { style: "margin:0;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#F4F3F7" }, esc(title)));
-    if (detail) wrap.appendChild(el('p', { style: 'margin:0;max-width:46ch;font-size:13.5px;line-height:1.7;color:#A7A3B8' }, esc(detail)));
+    wrap.appendChild(el('p', { style: "margin:0;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#FFFFFF" }, esc(title)));
+    if (detail) wrap.appendChild(el('p', { style: 'margin:0;max-width:46ch;font-size:13.5px;line-height:1.7;color:#B8B3C8' }, esc(detail)));
     host.appendChild(wrap);
   }
 

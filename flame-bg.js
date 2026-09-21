@@ -119,9 +119,9 @@ const FRAG = `
 export async function createFlameBackground(container, options) {
   const opts = Object.assign({
     // The component's red swapped for this page's violet.
-    baseColor: '#3A2280',
-    accentColor: '#8B5CF6',
-    highlight: '#E4DAFF',
+    baseColor: '#3A0CA3',
+    accentColor: '#6A3BE8',
+    highlight: '#FFFFFF',
     density: 26,      // cells across the short edge — the component's 78 is
                       // a fine mist at this size; this is the same field
                       // drawn big enough to read as flame.
