@@ -216,6 +216,68 @@ a { color: inherit; text-decoration: none; }
 .btn-line { border-color: var(--line-hi); color: var(--text); background: transparent; }
 .btn-line:hover { border-color: var(--accent); background: var(--accent-soft); }
 
+/* Moving gradient (Originkit "Moving Gradient Button"): a comet of the
+   palette runs round the pill's border -- white at its head, trailing off
+   through #3A0CA3 into nothing -- and on hover the ring blooms into a full
+   glow. The component's 6px stroke at its 40px label is 2px at this one's
+   15px; the padding gives the extra pixel back, so the button is the size
+   of its neighbour. */
+@property --mg-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.btn-moving {
+  position: relative;
+  isolation: isolate;
+  padding: 12px 25px;
+  border: 2px solid transparent;
+  color: var(--text);
+  background:
+    linear-gradient(var(--obsidian), var(--obsidian)) padding-box,
+    conic-gradient(from var(--mg-angle),
+      rgba(58, 12, 163, 0) 0deg,
+      rgba(58, 12, 163, 0) 150deg,
+      rgba(58, 12, 163, 0.85) 270deg,
+      #A37AFF 335deg,
+      #FFFFFF 360deg) border-box;
+  animation: mgSpin 3.2s linear infinite;
+}
+
+/* The bloom: a full ring and its glow, faded in over the comet on hover. */
+.btn-moving::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 2px #A37AFF,
+              0 0 18px rgba(58, 12, 163, 0.95),
+              0 0 42px rgba(58, 12, 163, 0.55);
+  opacity: 0;
+  transition: opacity var(--t-base) cubic-bezier(0.42, 0, 0.58, 1);
+  pointer-events: none;
+}
+.btn-moving:hover::after,
+.btn-moving:focus-visible::after { opacity: 1; }
+.btn-moving:hover { background:
+    linear-gradient(rgba(58, 12, 163, 0.28), rgba(58, 12, 163, 0.28)) padding-box,
+    linear-gradient(var(--obsidian), var(--obsidian)) padding-box,
+    conic-gradient(from var(--mg-angle),
+      rgba(58, 12, 163, 0) 0deg,
+      rgba(58, 12, 163, 0) 150deg,
+      rgba(58, 12, 163, 0.85) 270deg,
+      #A37AFF 335deg,
+      #FFFFFF 360deg) border-box; }
+
+@keyframes mgSpin { to { --mg-angle: 360deg; } }
+
+/* Held still, the comet stays put as a lit arc; the hover bloom remains. */
+@media (prefers-reduced-motion: reduce) {
+  .btn-moving { animation: none; }
+}
+
 .btn-ghost {
   border-color: var(--line);
   color: var(--text);
