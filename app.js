@@ -288,15 +288,28 @@
       // A card's own height does not depend on its slot's, so it can be read
       // with the slots' heights left set — clearing them first shifted the
       // page for a moment on every refresh.
+      //
+      // Safari can run this before the stylesheet has been applied: the slot
+      // is not sticky yet, its top reads "auto", and every number below came
+      // out NaN. Fed to the scale's smoothing, a NaN never left -- each later
+      // value was eased from it -- and the cards sat at scale(0, 1) for the
+      // life of the page: zero wide, a blank section on every iPhone. Until
+      // the layout is real there is nothing to measure, and nothing is set;
+      // the load-time refresh measures again.
+      const cs = getComputedStyle(slots[0]);
+      const pin = parseFloat(cs.top);
+      const gap = parseFloat(cs.marginBottom);
+      if (cs.position !== 'sticky' && cs.position !== '-webkit-sticky') { m = null; return; }
+      if (!Number.isFinite(pin) || !Number.isFinite(gap)) { m = null; return; }
+
       let tallest = 0;
       cards.forEach(c => { tallest = Math.max(tallest, c.offsetHeight); });
+      if (!tallest) { m = null; return; }
       const px = tallest + 'px';
       slots.forEach(s => { if (s.style.height !== px) s.style.height = px; });
 
       const stackTop = absTop(stack);
-      const cs = getComputedStyle(slots[0]);
-      const pin = parseFloat(cs.top);
-      const pitch = tallest + parseFloat(cs.marginBottom);
+      const pitch = tallest + gap;
       m = {
         stick: slots.map((s, i) => stackTop + i * pitch - pin),
         // Everything lets go together, once the end of the stack reaches
@@ -312,6 +325,7 @@
         if (targets[i] === 1) return;
         const span = Math.max(1, m.release - m.stick[i]);
         const s = 1 + (targets[i] - 1) * clamp01((y - m.stick[i]) / span);
+        if (!Number.isFinite(s)) return;   // never hand the smoothing a NaN
         if (instant) gsap.set(card, { scale: s });
         setters[i](s);
       });
