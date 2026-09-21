@@ -1898,6 +1898,75 @@
   }
 
   /* =====================================================================
+     CERTIFICATIONS — pixel blast background
+
+     React Bits "PixelBlast", rebuilt in pixel-blast-bg.js, with the
+     component's example settings and the page's violet. Background only:
+     the canvas sits behind the card stack and never takes a click from it.
+
+     The section is several screens tall — the card stack is scrolled
+     through — so rather than one canvas the height of all of it, the
+     canvas is a screen tall and pinned, riding down the section as it is
+     scrolled. The pattern is the same size wherever the visitor is, and
+     the GPU draws one screen of it, not four.
+     ===================================================================== */
+  const PIXEL_BLAST = {
+    variant: 'circle',
+    pixelSize: 6,
+    color: '#6A3BE8',       // the component's #B497CF, in this page's violet
+    patternScale: 3,
+    patternDensity: 1.2,
+    pixelSizeJitter: 0.5,
+    enableRipples: true,
+    rippleSpeed: 0.4,
+    rippleThickness: 0.12,
+    rippleIntensityScale: 1.5,
+    liquid: true,
+    liquidStrength: 0.12,
+    liquidRadius: 1.2,
+    liquidWobbleSpeed: 5,
+    speed: 0.6,
+    edgeFade: 0.25
+  };
+
+  function setupPixelBlast() {
+    const section = document.getElementById('certifications');
+    if (!section || reduceMotion) return;
+    if (!webglAvailable()) return;
+
+    const layer = el('div', { class: 'certs-bg', 'aria-hidden': 'true' });
+    const pin = el('div', { class: 'certs-bg-pin' });
+    layer.appendChild(pin);
+    section.insertBefore(layer, section.firstChild);
+
+    let started = false;
+    let tries = 0;
+
+    function start() {
+      if (started) return;
+      started = true;
+      import('./pixel-blast-bg.js')
+        .then(m => m.createPixelBlast(pin, section, PIXEL_BLAST))
+        .catch(() => {
+          // A dropped module or CDN fetch should not cost the section its
+          // backdrop for the life of the page. No WebGL 2 fails the same
+          // way, and the retries simply fail again, quietly.
+          started = false;
+          if (++tries < 3) setTimeout(start, 2000 * tries);
+        });
+    }
+
+    // A screen's warning, so Three.js and the shader are ready before the
+    // section arrives.
+    const io = new IntersectionObserver(entries => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      io.disconnect();
+      start();
+    }, { rootMargin: '900px 0px' });
+    io.observe(section);
+  }
+
+  /* =====================================================================
      CURSOR IMAGE TRAIL
 
      Decorative only: a pointer-events:none layer behind everything from
@@ -2169,6 +2238,7 @@
     setupProjectStrip();
     setupFluidBackground('fluid-zone');
     setupFlameBackground();
+    setupPixelBlast();
     setupCursorTrail();
     initHero3D();
   }

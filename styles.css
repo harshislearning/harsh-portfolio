@@ -993,6 +993,26 @@ a { color: inherit; text-decoration: none; }
 
 /* ------------------------- Certifications ------------------------------- */
 
+/* The pixel blast background (app.js, setupPixelBlast). The layer spans
+   the section; the canvas inside it is one screen tall and pinned, so it
+   rides down the section behind the card stack. Content sits above it. */
+.certs { position: relative; }
+.certs > .wrap { position: relative; z-index: 1; }
+.certs-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.certs-bg-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+@supports (height: 100svh) {
+  .certs-bg-pin { height: 100svh; }
+}
+
 /* Certificates: a stack of cards (Skiper UI "Skiper16"). Each card sits in
    a sticky slot, so the cards pin 20px apart as the section scrolls and
    each one slides up over the last; JS shrinks the pinned ones. */
