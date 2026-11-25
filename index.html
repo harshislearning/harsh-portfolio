@@ -61,7 +61,7 @@
   </header>
 
   <!-- ==================== HERO ==================== -->
-  <section id="home" class="hero">
+  <section id="home" class="hero" tabindex="-1">
     <!-- WebGL point cloud. Falls back to a CSS gradient when WebGL or
          motion is unavailable; see .hero-fallback in styles.css. -->
     <div class="hero-canvas" id="hero-canvas" aria-hidden="true">
@@ -70,24 +70,11 @@
 
     <div class="hero-inner">
       <div class="hero-copy">
-        <!-- Fixed-height viewport: both states are absolutely positioned
-             inside it, so swapping them cannot move the buttons.
-             "Hi, it's" belongs to state A, so it slides away with it and is
-             absent once the second state has arrived. -->
-        <div class="hero-swap" id="hero-swap">
-          <div class="hero-state" data-state="a">
-            <span class="hero-greet">Hi, it's</span>
-            <h1 class="hero-title">Harsh <span class="accent">Patil</span></h1>
-            <p class="hero-roles">
-              Data Science <span>/</span> Machine Learning <span>/</span> Generative AI
-            </p>
-          </div>
-
-          <div class="hero-state" data-state="b">
-            <p class="hero-title">AI Research <span class="accent">Intern</span></p>
-            <p class="hero-roles">at Calyx Global</p>
-          </div>
-        </div>
+        <span class="hero-greet">Hi, it's</span>
+        <h1 class="hero-title">Harsh <span class="accent">Patil</span></h1>
+        <p class="hero-roles">
+          Data Science <span>/</span> Machine Learning <span>/</span> Generative AI
+        </p>
 
         <div class="hero-cta">
           <a href="uploads/Harsh_Patil_Resume.pdf" class="btn btn-solid" data-action="resume">View Resume</a>
@@ -128,7 +115,7 @@
   <div class="trail-zone" id="trail-zone">
 
   <!-- ==================== ABOUT ==================== -->
-  <section id="about" class="section about">
+  <section id="about" class="section about" tabindex="-1">
     <div class="wrap">
       <h2 class="h2 text-animate">About Me</h2>
 
@@ -269,7 +256,7 @@
   <div class="fluid-zone" id="fluid-zone">
 
   <!-- ==================== EXPERIENCE ==================== -->
-  <section id="experience" class="section experience">
+  <section id="experience" class="section experience" tabindex="-1">
     <div class="wrap">
       <header class="sec-head reveal">
         <h2 class="eyebrow eyebrow-xl">Experience</h2>
@@ -278,17 +265,16 @@
       <article class="exp-item reveal">
         <header class="exp-head">
           <h3 class="exp-role">AI Research Intern <span class="exp-at">|</span> <span class="accent">Calyx Global</span></h3>
-          <span class="pill pill-accent">Sep 2026 - Present</span>
+          <span class="pill pill-accent">Sep 2026 - Nov 2026</span>
         </header>
 
         <p class="exp-meta">
-          <span>Remote</span>
           <span>Full-Time</span>
           <span>Data Science</span>
         </p>
 
         <p class="exp-body">
-          Working on applied <strong>Machine Learning and Deep Learning projects</strong>, covering the complete workflow from data preprocessing and EDA to model development, evaluation, and deployment. I work with <strong>classical ML, CNNs, RNNs/LSTMs, and Transfer Learning</strong>, while experimenting with different approaches to improve model performance. I also deploy models using <strong>Streamlit, Flask, and Dash</strong> and document experiments and findings through research reports and presentations.
+          Worked on applied <strong>Machine Learning and Deep Learning projects</strong>, covering the complete workflow from data preprocessing and EDA to model development, evaluation, and deployment. I worked with <strong>classical ML, CNNs, RNNs/LSTMs, and Transfer Learning</strong>, experimenting with different approaches to improve model performance. I also deployed models using <strong>Streamlit, Flask, and Dash</strong> and documented experiments and findings through research reports and presentations.
         </p>
 
         <p class="tags">
@@ -311,7 +297,7 @@
   </section>
 
   <!-- ==================== PROJECTS ==================== -->
-  <section id="projects" class="section projects">
+  <section id="projects" class="section projects" tabindex="-1">
     <div class="wrap">
       <header class="sec-head reveal">
         <p class="eyebrow">Projects</p>
@@ -327,7 +313,7 @@
   </div><!-- /.fluid-zone -->
 
   <!-- ==================== CERTIFICATIONS ==================== -->
-  <section id="certifications" class="section certs">
+  <section id="certifications" class="section certs" tabindex="-1">
     <div class="wrap">
       <header class="sec-head reveal">
         <h2 class="h2">My Certifications</h2>
@@ -339,7 +325,7 @@
   </section>
 
   <!-- ==================== CONTACT ==================== -->
-  <section id="contact" class="section contact">
+  <section id="contact" class="section contact" tabindex="-1">
     <div class="wrap split split-contact">
       <div class="reveal">
         <p class="eyebrow">Let's Connect</p>

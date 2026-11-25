@@ -114,6 +114,11 @@ a { color: inherit; text-decoration: none; }
 }
 .skip-link:focus { top: 14px; }
 
+/* The sections carry tabindex="-1" so a skip or nav jump can put focus
+   inside them. They cannot be tabbed to, so that focus is always
+   programmatic and a ring around a whole section would only confuse. */
+section[tabindex="-1"]:focus { outline: none; }
+
 /* Grain sits on a fixed, non-interactive layer so it never forces a repaint
    while the page scrolls. */
 .grain {
@@ -451,39 +456,6 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.01em;
   color: var(--text-mute);
 }
-
-/* Scroll-driven text swap. Height is measured from state A and pinned by JS,
-   so the two states share one box and nothing below them moves. */
-.hero-swap {
-  position: relative;
-  overflow: hidden;
-  height: var(--swap-h, auto);
-}
-
-.hero-state {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  /* flow-root, so the roles paragraph's bottom margin stays inside the
-     measured height instead of collapsing out and pulling the buttons up. */
-  display: flow-root;
-  will-change: transform, opacity;
-}
-
-/* State B carries no greeting, so it is centred in the box state A sizes
-   rather than sitting top-aligned with a gap where "Hi, it's" used to be. */
-.hero-state[data-state="b"] {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 100%;
-}
-
-/* Before JS measures, state A holds the box open so the hero renders at its
-   normal height even if the script never runs. */
-.hero-swap:not(.is-ready) .hero-state[data-state="a"] { position: relative; }
-.hero-swap:not(.is-ready) .hero-state[data-state="b"] { opacity: 0; }
 
 .hero-roles {
   margin: 0 0 34px;
