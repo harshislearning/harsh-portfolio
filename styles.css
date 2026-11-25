@@ -1613,3 +1613,116 @@ body.js .fade-lines.is-armed p.fl-instant { transition: none; }
     -webkit-backdrop-filter: none;
   }
 }
+
+/* ============================== PRINT ==================================== */
+
+/* The page is white-on-black, and a browser drops the background when it
+   prints: the name came out white on white paper and whole sections — the
+   projects, which print as the collapsed strip — came out blank. Printing
+   is how a recruiter saves a copy, so it gets its own, plain treatment:
+   dark text on white, no backdrops, nothing collapsed, nothing animated.
+   The !importants are not decoration — the layouts being undone here are
+   set from JS as inline styles, which nothing else can outrank. */
+@media print {
+  :root {
+    --bg: #FFFFFF;
+    --bg-elev: #FFFFFF;
+    --text: #111111;
+    --text-dim: #333333;
+    --text-mute: #555555;
+    --accent: #2E0A7D;
+    --accent-deep: #2E0A7D;
+    --line: #BBBBBB;
+    --line-hi: #999999;
+    --surface: transparent;
+    --surface-hi: transparent;
+    --accent-soft: transparent;
+    --accent-line: #999999;
+  }
+
+  html, body { background: #fff !important; color: #111 !important; }
+
+  /* Decoration that either wastes ink or prints as an empty box. */
+  .grain, .hero-canvas, .fluid-zone > canvas, .certs-bg, .contact > canvas,
+  .trail-zone > .trail-layer, .proj-hints, .skip-link, .nav-wrap, .modal-root,
+  .orbit-ring, .orbit-halo, .orbit-spin, .orbit-dot { display: none !important; }
+
+  .hero { min-height: 0 !important; padding: 0 0 18px !important; }
+  /* Buttons do nothing on paper, and the solid one's white label would
+     print on nothing at all. */
+  .hero-cta { display: none !important; }
+  .section { padding: 18px 0 !important; }
+  .hero-inner { display: block !important; }
+  .hero-figure { display: none !important; }
+
+  /* Everything the page reveals, fades or splits on scroll is simply there. */
+  .reveal, .text-animate, .fade-lines p, .ta-char, .ta-word,
+  .exp-item, .proj, .cert-card, .metric, .contact-card {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  /* The projects: neither the hover strip nor the phone deck, just the
+     cards, each whole. Everything a closed card holds back is shown, since
+     on paper there is nothing to click to open. */
+  .proj-grid, .proj-grid.is-strip, .proj-grid.is-swipe {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    perspective: none !important;
+  }
+  .proj-grid .proj {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 0 14px !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  /* Capped, so a project is a block on the page rather than a page each. */
+  .proj-media { height: auto !important; max-height: 190px !important; aspect-ratio: 16 / 9; }
+  .proj-body { width: auto !important; opacity: 1 !important; }
+  .proj:not(.is-expanded) .proj-tagline,
+  .proj:not(.is-expanded) .proj-desc,
+  .proj:not(.is-expanded) .proj-body .tags,
+  .proj:not(.is-expanded) .proj-foot { display: flex !important; }
+  .proj:not(.is-expanded) .proj-tagline,
+  .proj:not(.is-expanded) .proj-desc { display: block !important; }
+  .proj:not(.is-expanded) .proj-title { font-size: 17px !important; }
+
+  /* The certificates stack by sticking to the top of the screen, which on
+     paper would print the same card six times. */
+  .cert-slot {
+    position: static !important;
+    height: auto !important;
+    margin-bottom: 14px !important;
+  }
+  .cert-card {
+    top: 0 !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .cert-shot { max-height: 300px !important; }
+  .cert-stack-end { display: none !important; }
+
+  .exp-item, .edu-item, .contact-card, .skill-group {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* A printed link cannot be followed, so the address is written out --
+     except in Contact, where every card already prints its address. */
+  .proj-link[href]::after,
+  .cert-link[href]::after {
+    content: " — " attr(href);
+    font-size: 10px;
+    font-weight: 400;
+    word-break: break-all;
+    color: #444;
+  }
+
+  h1, h2, h3, .h2 { page-break-after: avoid; break-after: avoid; }
+}
