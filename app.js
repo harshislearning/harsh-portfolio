@@ -694,28 +694,12 @@
 
     const orbit = document.getElementById('hero-orbit');
 
-    // The hero pins for a short distance and that distance is spent on the
-    // text swap: the first scroll is consumed by the animation, a further
-    // scroll releases the page. Native scroll drives it, so wheel, trackpad
-    // and touch all behave, and the page can never end up stuck.
-    if (heroSwap) {
-      ScrollTrigger.create({
-        trigger: '#home',
-        start: 'top top',
-        end: () => '+=' + Math.round(window.innerHeight * 0.85),
-        pin: true,
-        pinSpacing: true,
-        anticipatePin: 1,
-        scrub: true,
-        invalidateOnRefresh: true,
-        onUpdate: self => { heroSwap(self.progress); }
-      });
-    }
+    // The hero used to pin here for the length of its text swap. The swap is
+    // gone, so the hero is an ordinary section and the page scrolls straight
+    // past it.
 
     // Point-cloud dispersion and portrait parallax are driven by About
-    // rising into view, which is exactly the stretch after the pin releases.
-    // Keeping them off the pinned range is what lets the hero sit completely
-    // still while only the text moves.
+    // rising into view.
     ScrollTrigger.create({
       trigger: '#about',
       start: 'top bottom',
@@ -1245,133 +1229,6 @@
     } else {
       setTimeout(kick, 2200);
     }
-  }
-
-  /* =====================================================================
-     HERO — scroll-driven text swap
-
-     Two states share one fixed-height viewport. State A slides up and out
-     while state B slides in from below, both driven by the hero's existing
-     ScrollTrigger progress, so no extra scroll listener is added.
-     ===================================================================== */
-  // Progress here is the hero's PIN progress, not page scroll. The swap runs
-  // over the first stretch of the pin; the remainder is the settled state the
-  // hero holds before a further scroll releases it.
-  const SWAP_FROM = 0.06;
-  const SWAP_TO   = 0.62;
-
-  let heroSwap = null;
-
-  function setupHeroSwap() {
-    const swap = document.getElementById('hero-swap');
-    if (!swap) return;
-    const a = swap.querySelector('[data-state="a"]');
-    const b = swap.querySelector('[data-state="b"]');
-    if (!a || !b) return;
-
-    const bTitle = b.querySelector('.hero-title');
-    const aTitle = a.querySelector('.hero-title');
-
-    const figure = document.querySelector('.hero-figure');
-
-    // How wide the second state's title may run. The text column is the
-    // floor, but on the side-by-side layout the portrait is centred in a
-    // wider column, so there is unused room between the two. Using it lets
-    // the longer title render larger without ever reaching the portrait.
-    function availableWidth() {
-      let avail = swap.clientWidth;
-      if (!figure) return avail;
-      const s = swap.getBoundingClientRect();
-      const f = figure.getBoundingClientRect();
-      const sideBySide = f.top < s.bottom && f.bottom > s.top;
-      if (sideBySide && f.left > s.left) {
-        avail = Math.max(avail, Math.floor(f.left - s.left - 28));
-      }
-      return avail;
-    }
-
-    function fitTitle() {
-      // "AI Research Intern" is much longer than "Harsh Patil". At the same
-      // size it would wrap onto a second line and make the box taller, which
-      // would push the buttons down. Scale it to one line instead so the
-      // hero keeps its exact dimensions.
-      bTitle.style.fontSize = '';
-      bTitle.style.whiteSpace = 'nowrap';
-      swap.style.removeProperty('width');
-
-      const base = parseFloat(getComputedStyle(aTitle).fontSize);
-      // Two pixels in hand. Fitting the text to exactly the width available
-      // leaves nothing for rounding or for a font whose metrics settle a
-      // hair wider than they measured, and the box clips what it cannot
-      // hold — which is how the last letter of "Intern" went missing.
-      const avail = availableWidth() - 2;
-      if (avail > swap.clientWidth) swap.style.width = avail + 'px';
-
-      const natural = bTitle.scrollWidth;
-      if (natural > avail && natural > 0) {
-        bTitle.style.fontSize = Math.floor(base * (avail / natural) * 100) / 100 + 'px';
-      }
-
-      // Measure again and shave if it still does not fit: one pass is a
-      // prediction, and a proportional guess at a new font size is not
-      // exact. This one checks.
-      for (let i = 0; i < 3 && bTitle.scrollWidth > avail; i++) {
-        const now = parseFloat(getComputedStyle(bTitle).fontSize);
-        bTitle.style.fontSize = (Math.floor(now * 100) / 100 - 1) + 'px';
-      }
-    }
-
-    function measure() {
-      swap.classList.remove('is-ready');
-      bTitle.style.whiteSpace = 'nowrap';
-      swap.style.removeProperty('--swap-h');
-      // eslint-disable-next-line no-unused-expressions
-      swap.offsetHeight;
-      fitTitle();
-      const h = a.offsetHeight;
-      if (!h) return;
-      swap.style.setProperty('--swap-h', h + 'px');
-      swap.classList.add('is-ready');
-      render(lastQ);
-    }
-
-    let lastQ = 0;
-
-    function render(q) {
-      lastQ = q;
-      // Smoothstep keeps the ends from starting and stopping abruptly while
-      // staying tied to scroll position.
-      const e = q * q * (3 - 2 * q);
-      a.style.transform = 'translateY(' + (-e * 100).toFixed(2) + '%)';
-      b.style.transform = 'translateY(' + ((1 - e) * 100).toFixed(2) + '%)';
-      // Both reach a clean 0 at their own end: no ghost of the incoming text
-      // sitting under the hero at rest, and none of the outgoing text left
-      // behind once the swap has finished.
-      a.style.opacity = (1 - e).toFixed(3);
-      b.style.opacity = e.toFixed(3);
-    }
-
-    measure();
-    window.addEventListener('load', measure);
-    // The fitting is measured in whatever font is on screen at the time. If
-    // that was the fallback, every measurement is wrong the moment the real
-    // one arrives.
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(measure).catch(() => {});
-    }
-
-    let rt = 0;
-    const requeue = () => { clearTimeout(rt); rt = setTimeout(measure, 160); };
-    window.addEventListener('resize', requeue);
-    window.addEventListener('orientationchange', requeue);
-
-    if (reduceMotion) { render(0); return; }
-
-    heroSwap = (progress) => {
-      const q = clamp01((progress - SWAP_FROM) / (SWAP_TO - SWAP_FROM));
-      render(q);
-    };
-    render(0);
   }
 
   /* =====================================================================
@@ -2344,7 +2201,6 @@
     renderContacts();
     setupNav();
 
-    setupHeroSwap();
     // Before the scroll triggers are measured, so they measure the split
     // text rather than the text it replaced.
     setupTextAnimate();
