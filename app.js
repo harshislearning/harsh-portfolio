@@ -397,11 +397,16 @@
   function scrollToId(id) {
     const target = document.getElementById(id);
     if (!target) return;
-    // Home is the top of the page, full stop. Measuring it lands wherever
-    // the pinned hero happens to be sitting, which is the end of its
-    // animation rather than the start of the page.
+    // Home is the top of the page, full stop, rather than wherever the
+    // section's own box begins.
     const top = id === 'home' ? 0 : Math.max(0, absTop(target) - 78);
     window.scrollTo({ top: top, behavior: reduceMotion ? 'auto' : 'smooth' });
+    // And move focus into the section. Scrolling alone leaves a keyboard
+    // where it was, in the bar above: the skip link scrolled to the top and
+    // then handed the next Tab straight back into the navigation it exists
+    // to skip, and every nav jump did the same. preventScroll, so taking
+    // focus cannot fight the smooth scroll already under way.
+    if (target.hasAttribute('tabindex')) target.focus({ preventScroll: true });
   }
 
   function setupNav() {

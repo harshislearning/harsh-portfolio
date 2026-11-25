@@ -114,6 +114,11 @@ a { color: inherit; text-decoration: none; }
 }
 .skip-link:focus { top: 14px; }
 
+/* The sections carry tabindex="-1" so a skip or nav jump can put focus
+   inside them. They cannot be tabbed to, so that focus is always
+   programmatic and a ring around a whole section would only confuse. */
+section[tabindex="-1"]:focus { outline: none; }
+
 /* Grain sits on a fixed, non-interactive layer so it never forces a repaint
    while the page scrolls. */
 .grain {
