@@ -38,7 +38,7 @@
         category: 'RAG',
         tagline: 'A production-grade RAG system that answers questions from your PDFs, with citations you can trust.',
         description: 'Hybrid retrieval (dense + keyword) + reranking + cited, verified answers, served via FastAPI and Streamlit, with an automated eval suite gating every change in CI.',
-        image: 'uploads/Screenshot 2026-08-11 123718.png',
+        image: 'uploads/Screenshot 2026-08-11 123718.webp',
         tech: ['RAG', 'LLM', 'FastAPI', 'Streamlit', 'FAISS', 'BM25', 'Python', 'CI/CD'],
         github: 'https://github.com/harshislearning/Ask-My-Docs'
       },
@@ -47,7 +47,7 @@
         category: 'ML',
         tagline: 'ML-driven freight cost forecasting and invoice risk flagging for procurement & finance teams.',
         description: 'An end-to-end ML system that predicts vendor freight costs and automatically flags high-risk invoices for manual review, built on real invoice/purchase data with a live Streamlit dashboard.',
-        image: 'uploads/Screenshot 2026-08-13 151213.png',
+        image: 'uploads/Screenshot 2026-08-13 151213.webp',
         tech: ['Machine Learning', 'Regression', 'Classification', 'Python', 'Scikit-learn', 'Pandas', 'SQLite', 'Streamlit'],
         github: 'https://github.com/harshislearning/-Vendor-Invoice-Intelligence-Platform'
       },
@@ -56,7 +56,7 @@
         category: 'GenAI',
         tagline: 'Generates messy, realistic datasets on demand, then teaches you exactly how to clean them.',
         description: 'A Streamlit app that creates domain-specific synthetic datasets with intentionally injected data quality issues, then uses an LLM to generate a step-by-step Python or SQL cleaning solution for the exact dataset you just made.',
-        image: 'uploads/Screenshot (130).png',
+        image: 'uploads/Screenshot (130).webp',
         tech: ['LLM', 'Streamlit', 'Python', 'Pandas', 'Faker', 'Groq API', 'EdTech'],
         github: 'https://github.com/harshislearning/AI-Powered-Synthetic-Data-Generator-and-Data-Cleaning-Tutor'
       },
@@ -65,7 +65,7 @@
         category: 'ML',
         tagline: 'Predicting Win / Draw / Loss for FC Barcelona matches, built on a self-made dataset, achieving 72.22% accuracy.',
         description: "A machine learning model trained on a custom-built dataset of FC Barcelona's 2023/24 and 2024/25 seasons, served through a Flask web app that predicts match outcomes from opponent and home/away input.",
-        image: 'uploads/Screenshot 2026-08-11 122140.png',
+        image: 'uploads/Screenshot 2026-08-11 122140.webp',
         tech: ['Machine Learning', 'Flask', 'Python', 'Scikit-learn', 'Sports Analytics', 'Random Forest', 'XGBoost'],
         github: 'https://github.com/harshislearning/Prediction-of-Fc-Barcelona-Football-Matches'
       },
@@ -74,7 +74,7 @@
         category: 'GenAI',
         tagline: 'AI that writes LinkedIn posts in your own voice, trained on your past posts, not a generic template.',
         description: 'An LLM-powered tool that generates LinkedIn posts matching a chosen topic, language, and length, using few-shot examples pulled from a real post history to keep the writing style human, not robotic.',
-        image: 'uploads/Screenshot (80).png',
+        image: 'uploads/Screenshot (80).webp',
         tech: ['LLM', 'LangChain', 'Python', 'Prompt Engineering', 'Few-Shot Learning', 'NLP'],
         github: 'https://github.com/harshislearning/Linkedin-Post-Generator'
       }
